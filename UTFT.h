@@ -160,12 +160,13 @@ class UTFT
 		regsize B_RS, B_WR, B_CS, B_RST, B_SDA, B_SCL;
 		_current_font	cfont;
 
-		void LCD_Writ_Bus(char VH,char VL, byte mode);
-		void LCD_Write_COM(char VL);
-		void LCD_Write_DATA(char VH,char VL);
-		void LCD_Write_DATA(char VL);
-		void LCD_Write_COM_DATA(char com1,int dat1);
-		void setPixel(byte r,byte g,byte b);
+		void LCD_Writ_Bus(uint8_t VH, uint8_t VL, uint8_t mode);
+		void LCD_Write_COM(uint8_t VL);
+		void LCD_Write_DATA(uint8_t VH, uint8_t VL);
+		void LCD_Write_DATA(uint8_t VL);
+		void LCD_Write_COM_DATA(uint8_t com1, uint16_t dat1);
+		void LCD_Write_COM_DATA8(uint8_t com1, uint8_t dat1);
+		void setPixel(uint8_t r, uint8_t g, uint8_t b);
 		void drawHLine(int x, int y, int l);
 		void drawVLine(int x, int y, int l);
 		void printChar(byte c, int x, int y);

@@ -1,5 +1,8 @@
+#ifndef HW_AVR_h
+#define HW_AVR_h
+
 // *** Hardwarespecific functions ***
-void UTFT::LCD_Writ_Bus(char VH,char VL, byte mode)
+void UTFT::LCD_Writ_Bus(uint8_t VH, uint8_t VL, uint8_t mode)
 {   
 	switch (mode)
 	{
@@ -154,6 +157,31 @@ void UTFT::LCD_Writ_Bus(char VH,char VL, byte mode)
 
 #endif
 		break;
+	case 9:
+		// This is for using a display with a 16-bit parallel interface with one of the smaller Arduinos.
+		// We use the same 8 pins to pass first the high byte and then the low byte. We latch the high byte in a 74HC373.
+#if defined(__AVR_ATmega32U4__)
+		// Use PORTF 0-1, PORTD 0-1 and PORTF 4-7 to pass first the high byte and then the low byte (NB this is not pin-compatible with the Uno)
+		// Use PORTD 4 to control the latch that holds the high byte
+		// Write the high byte
+		// Latch the high byte
+		PORTD |= 0x10;		// set latch to transparent
+		PORTF = VH;
+		cli();				// disable interrupts in case an ISR writes to other bits of port D
+		PORTD = (PORTD & 0xFC) | ((VH >> 2) & 0x03);
+		sei();
+		PORTD &= ~(0x10);	// set latch to store data
+		
+		// Write the low byte
+		PORTF = VL;
+		cli();				// disable interrupts in case an ISR writes to other bits of port D
+		PORTD = (PORTD & 0xFC) | ((VL >> 2) & 0x03);
+		sei();
+#else
+		// Pin assignments for atmega328 to be decided
+#endif
+		pulse_low(P_WR, B_WR);		
+		break;
 	case 16:
 #if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
 		PORTA = VH;
@@ -174,8 +202,17 @@ void UTFT::_set_direction_registers(byte mode)
 #if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
 	DDRA = 0xFF;
 	if (mode==16)
+	{
 		DDRC = 0xFF;
+	}
 #elif defined(__AVR_ATmega32U4__)
+	if (mode == 9)
+	{
+		DDRF |= 0xF3;
+		DDRD |= 0x13;
+	}
+	else
+	{
 		pinMode(0,OUTPUT);
 		pinMode(1,OUTPUT);
 		pinMode(2,OUTPUT);
@@ -184,6 +221,7 @@ void UTFT::_set_direction_registers(byte mode)
 		pinMode(5,OUTPUT);
 		pinMode(6,OUTPUT);
 		pinMode(7,OUTPUT);
+	}
 #else
 	DDRD = 0xFF;
 	if (mode==16)
@@ -194,3 +232,5 @@ void UTFT::_set_direction_registers(byte mode)
 #endif
 
 }
+
+#endif

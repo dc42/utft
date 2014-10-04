@@ -76,7 +76,8 @@ UTFT::UTFT(byte model, int RS, int WR,int CS, int RST, int SER)
 		case SSD1289:
 			disp_x_size=239;
 			disp_y_size=319;
-			display_transfer_mode=16;
+//			display_transfer_mode=16;
+			display_transfer_mode=9;
 			break;
 		case ILI9325C:
 			disp_x_size=239;
@@ -107,7 +108,8 @@ UTFT::UTFT(byte model, int RS, int WR,int CS, int RST, int SER)
 		case HX8352A:
 			disp_x_size=239;
 			disp_y_size=399;
-			display_transfer_mode=16;
+//			display_transfer_mode=16;
+			display_transfer_mode=9;
 			break;
 		case ST7735:
 			disp_x_size=127;
@@ -188,7 +190,7 @@ UTFT::UTFT(byte model, int RS, int WR,int CS, int RST, int SER)
 	}
 }
 
-void UTFT::LCD_Write_COM(char VL)  
+void UTFT::LCD_Write_COM(uint8_t VL)  
 {   
 	if (display_transfer_mode!=1)
 	{
@@ -199,7 +201,7 @@ void UTFT::LCD_Write_COM(char VL)
 		LCD_Writ_Bus(0x00,VL,display_transfer_mode);
 }
 
-void UTFT::LCD_Write_DATA(char VH,char VL)
+void UTFT::LCD_Write_DATA(uint8_t VH, uint8_t VL)
 {
 	if (display_transfer_mode!=1)
 	{
@@ -213,7 +215,7 @@ void UTFT::LCD_Write_DATA(char VH,char VL)
 	}
 }
 
-void UTFT::LCD_Write_DATA(char VL)
+void UTFT::LCD_Write_DATA(uint8_t VL)
 {
 	if (display_transfer_mode!=1)
 	{
@@ -224,10 +226,16 @@ void UTFT::LCD_Write_DATA(char VL)
 		LCD_Writ_Bus(0x01,VL,display_transfer_mode);
 }
 
-void UTFT::LCD_Write_COM_DATA(char com1,int dat1)
+void UTFT::LCD_Write_COM_DATA(uint8_t com1, uint16_t dat1)
 {
      LCD_Write_COM(com1);
      LCD_Write_DATA(dat1>>8,dat1);
+}
+
+void UTFT::LCD_Write_COM_DATA8(uint8_t com1, uint8_t dat1)
+{
+     LCD_Write_COM(com1);
+     LCD_Write_DATA(dat1);
 }
 
 void UTFT::InitLCD(byte orientation)
@@ -1053,133 +1061,88 @@ void UTFT::InitLCD(byte orientation)
 #endif
 #ifndef DISABLE_HX8352A
 	case HX8352A:
-		LCD_Write_COM(0x83);           
-		LCD_Write_DATA(0x02);  //TESTM=1 
+		LCD_Write_COM_DATA8(0x83, 0x02);  //TESTM=1 
              
-		LCD_Write_COM(0x85);  
-		LCD_Write_DATA(0x03);  //VDC_SEL=011
-		LCD_Write_COM(0x8B);  
-		LCD_Write_DATA(0x01);
-		LCD_Write_COM(0x8C);  
-		LCD_Write_DATA(0x93); //STBA[7]=1,STBA[5:4]=01,STBA[1:0]=11
+		LCD_Write_COM_DATA8(0x85, 0x03);  //VDC_SEL=011
+		LCD_Write_COM_DATA8(0x8B, 0x01);
+		LCD_Write_COM_DATA8(0x8C, 0x93); //STBA[7]=1,STBA[5:4]=01,STBA[1:0]=11
         
-		LCD_Write_COM(0x91);  
-		LCD_Write_DATA(0x01); //DCDC_SYNC=1
+		LCD_Write_COM_DATA8(0x91, 0x01); //DCDC_SYNC=1
         
-		LCD_Write_COM(0x83);  
-		LCD_Write_DATA(0x00); //TESTM=0
+		LCD_Write_COM_DATA8(0x83, 0x00); //TESTM=0
 		//Gamma Setting
 
-		LCD_Write_COM(0x3E);  
-		LCD_Write_DATA(0xB0);
-		LCD_Write_COM(0x3F);  
-		LCD_Write_DATA(0x03);
-		LCD_Write_COM(0x40);  
-		LCD_Write_DATA(0x10);
-		LCD_Write_COM(0x41);  
-		LCD_Write_DATA(0x56);
-		LCD_Write_COM(0x42);  
-		LCD_Write_DATA(0x13);
-		LCD_Write_COM(0x43);  
-		LCD_Write_DATA(0x46);
-		LCD_Write_COM(0x44);  
-		LCD_Write_DATA(0x23);
-		LCD_Write_COM(0x45);  
-		LCD_Write_DATA(0x76);
-		LCD_Write_COM(0x46);  
-		LCD_Write_DATA(0x00);
-		LCD_Write_COM(0x47);  
-		LCD_Write_DATA(0x5E);
-		LCD_Write_COM(0x48);  
-		LCD_Write_DATA(0x4F);
-		LCD_Write_COM(0x49);  
-		LCD_Write_DATA(0x40);	
+		LCD_Write_COM_DATA8(0x3E, 0xB0);
+		LCD_Write_COM_DATA8(0x3F, 0x03);
+		LCD_Write_COM_DATA8(0x40, 0x10);
+		LCD_Write_COM_DATA8(0x41, 0x56);
+		LCD_Write_COM_DATA8(0x42, 0x13);
+		LCD_Write_COM_DATA8(0x43, 0x46);
+		LCD_Write_COM_DATA8(0x44, 0x23);
+		LCD_Write_COM_DATA8(0x45, 0x76);
+		LCD_Write_COM_DATA8(0x46, 0x00);
+		LCD_Write_COM_DATA8(0x47, 0x5E);
+		LCD_Write_COM_DATA8(0x48, 0x4F);
+		LCD_Write_COM_DATA8(0x49, 0x40);	
 		//**********Power On sequence************
         
-		LCD_Write_COM(0x17);  
-		LCD_Write_DATA(0x91);
+		LCD_Write_COM_DATA8(0x17, 0x91);
        
-		LCD_Write_COM(0x2B);  
-		LCD_Write_DATA(0xF9);
+		LCD_Write_COM_DATA8(0x2B, 0xF9);
 		delay(10);
         
-		LCD_Write_COM(0x1B);  
-		LCD_Write_DATA(0x14);
+		LCD_Write_COM_DATA8(0x1B, 0x14);
         
-		LCD_Write_COM(0x1A);  
-		LCD_Write_DATA(0x11);
+		LCD_Write_COM_DATA8(0x1A, 0x11);
               
-		LCD_Write_COM(0x1C);  
-		LCD_Write_DATA(0x06);
+		LCD_Write_COM_DATA8(0x1C, 0x06);
         
-		LCD_Write_COM(0x1F);  
-		LCD_Write_DATA(0x42);
+		LCD_Write_COM_DATA8(0x1F, 0x42);
 		delay(20);
         
-		LCD_Write_COM(0x19);  
-		LCD_Write_DATA(0x0A);
+		LCD_Write_COM_DATA8(0x19, 0x0A);
      
-		LCD_Write_COM(0x19);  
-		LCD_Write_DATA(0x1A);
+		LCD_Write_COM_DATA8(0x19, 0x1A);
 		delay(40);
         
         
-		LCD_Write_COM(0x19);  
-		LCD_Write_DATA(0x12);
+		LCD_Write_COM_DATA8(0x19, 0x12);
 		delay(40);
         
-		LCD_Write_COM(0x1E);  
-		LCD_Write_DATA(0x27);
+		LCD_Write_COM_DATA8(0x1E, 0x27);
 		delay(100);	   
         
         
 		//**********DISPLAY ON SETTING***********
         
-		LCD_Write_COM(0x24);  
-		LCD_Write_DATA(0x60);
+		LCD_Write_COM_DATA8(0x24, 0x60);
         
-		LCD_Write_COM(0x3D);  
-		LCD_Write_DATA(0x40);
+		LCD_Write_COM_DATA8(0x3D, 0x40);
         
-		LCD_Write_COM(0x34);  
-		LCD_Write_DATA(0x38);
+		LCD_Write_COM_DATA8(0x34, 0x38);
         
-		LCD_Write_COM(0x35);  
-		LCD_Write_DATA(0x38);
+		LCD_Write_COM_DATA8(0x35, 0x38);
         
-		LCD_Write_COM(0x24);  
-		LCD_Write_DATA(0x38);
+		LCD_Write_COM_DATA8(0x24, 0x38);
 		delay(40);
         
-		LCD_Write_COM(0x24);  
-		LCD_Write_DATA(0x3C);
+		LCD_Write_COM_DATA8(0x24, 0x3C);
         
-		LCD_Write_COM(0x16);  
-		LCD_Write_DATA(0x1C);
+		LCD_Write_COM_DATA8(0x16, 0x1C);
         
-		LCD_Write_COM(0x01);  
-		LCD_Write_DATA(0x06);
+		LCD_Write_COM_DATA8(0x01, 0x06);
         
-		LCD_Write_COM(0x55);  
-		LCD_Write_DATA(0x00); 
+		LCD_Write_COM_DATA8(0x55, 0x00); 
 
-		LCD_Write_COM(0x02);           
-		LCD_Write_DATA(0x00);
-		LCD_Write_COM(0x03);           
-		LCD_Write_DATA(0x00);
-		LCD_Write_COM(0x04);           
-		LCD_Write_DATA(0x00);
-		LCD_Write_COM(0x05);           
-		LCD_Write_DATA(0xef);
+		LCD_Write_COM_DATA8(0x02, 0x00);
+		LCD_Write_COM_DATA8(0x03, 0x00);
+		LCD_Write_COM_DATA8(0x04, 0x00);
+		LCD_Write_COM_DATA8(0x05, 0xef);
         
-		LCD_Write_COM(0x06);           
-		LCD_Write_DATA(0x00);
-		LCD_Write_COM(0x07);           
-		LCD_Write_DATA(0x00);
-		LCD_Write_COM(0x08);           
-		LCD_Write_DATA(0x01);
-		LCD_Write_COM(0x09);           
-		LCD_Write_DATA(0x8f);
+		LCD_Write_COM_DATA8(0x06, 0x00);
+		LCD_Write_COM_DATA8(0x07, 0x00);
+		LCD_Write_COM_DATA8(0x08, 0x01);
+		LCD_Write_COM_DATA8(0x09, 0x8f);
 
 		LCD_Write_COM(0x22);
 		break;
@@ -1788,7 +1751,7 @@ void UTFT::setBackColor(byte r, byte g, byte b)
 	bcolorb=b;
 }
 
-void UTFT::setPixel(byte r,byte g,byte b)
+void UTFT::setPixel(uint8_t r, uint8_t g, uint8_t b)
 {
 	LCD_Write_DATA(((r&248)|g>>5),((g&28)<<3|b>>3));	// rrrrrggggggbbbbb
 }
