@@ -195,11 +195,12 @@ class UTFT
 		void LCD_Write_COM(uint8_t VL);
 		void LCD_Write_DATA(uint8_t VH, uint8_t VL);
 		void LCD_Write_DATA(uint8_t VL);
+		void LCD_Write_Repeated_DATA(uint8_t VH, uint8_t VL, uint16_t num);
 		void LCD_Write_COM_DATA(uint8_t com1, uint16_t dat1);
 		void LCD_Write_COM_DATA8(uint8_t com1, uint8_t dat1);
 		void setPixel(uint8_t r, uint8_t g, uint8_t b);
-		void drawHLine(int x, int y, int l);
-		void drawVLine(int x, int y, int l);
+		void drawHLine(int x, int y, int len);
+		void drawVLine(int x, int y, int len);
 		void printChar(byte c, int x, int y);
 		void setXY(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2);
 		void clrXY();

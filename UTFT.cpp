@@ -175,6 +175,28 @@ void UTFT::LCD_Write_DATA(uint8_t VH, uint8_t VL)
 	}
 }
 
+void UTFT::LCD_Write_Repeated_DATA(uint8_t VH, uint8_t VL, uint16_t num)
+{
+	if (isParallel())
+	{
+		sbi(P_RS, B_RS);
+		while (num != 0)
+		{
+			LCD_Writ_Bus(VH,VL);
+			--num;
+		}
+	}
+	else
+	{
+		while (num != 0)
+		{
+			LCD_Writ_Bus(0x01,VH);
+			LCD_Writ_Bus(0x01,VL);
+			--num;
+		}
+	}
+}
+
 void UTFT::LCD_Write_DATA(uint8_t VL)
 {
 	if (isParallel())
@@ -1328,11 +1350,11 @@ void UTFT::setXY(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2)
 {
 	if (orient==LANDSCAPE)
 	{
-		swap(word, x1, y1);
-		swap(word, x2, y2)
+		swap(uint16_t, x1, y1);
+		swap(uint16_t, x2, y2)
 		y1=disp_y_size-y1;
 		y2=disp_y_size-y2;
-		swap(word, y1, y2)
+		swap(uint16_t, y1, y2)
 	}
 
 	switch(displayModel)
@@ -1625,17 +1647,42 @@ void UTFT::drawCircle(int x, int y, int radius)
 
 void UTFT::fillCircle(int x, int y, int radius)
 {
+	int f = 1 - radius;
+	int ddF_x = 1;
+	int ddF_y = -2 * radius;
+	int x1 = 0;
+	int y1 = radius;
+	
+	uint8_t ch=((fcolorr&248)|fcolorg>>5);
+	uint8_t cl=((fcolorg&28)<<3|fcolorb>>3);
+ 
 	cbi(P_CS, B_CS);
-	for(int y1=-radius; y1<=radius; y1++)
-	{	
-		for(int x1=-radius; x1<=radius; x1++) 
+	setXY(x, y + radius, x, y + radius);
+	LCD_Write_DATA(ch,cl);
+	setXY(x, y - radius, x, y - radius);
+	LCD_Write_DATA(ch,cl);
+	setXY(x - radius, y, x + radius, y);
+	LCD_Write_Repeated_DATA(ch, cl, radius + radius);
+ 
+	while(x1 < y1)
+	{
+		if(f >= 0) 
 		{
-			if(x1*x1+y1*y1 <= radius*radius) 
-			{
-				setXY(x+x1, y+y1, x+x1, y+y1);
-				LCD_Write_DATA(((fcolorr&248)|fcolorg>>5),((fcolorg&28)<<3|fcolorb>>3));
-			}
+			y1--;
+			ddF_y += 2;
+			f += ddF_y;
 		}
+		x1++;
+		ddF_x += 2;
+		f += ddF_x;    
+		setXY(x - x1, y + y1, x + x1, y + y1);
+		LCD_Write_Repeated_DATA(ch, cl, x1 + x1);
+		setXY(x - x1, y - y1, x + x1, y - y1);
+		LCD_Write_Repeated_DATA(ch, cl, x1 + x1);
+		setXY(x - y1, y + x1, x + y1, y + x1);
+		LCD_Write_Repeated_DATA(ch, cl, y1 + y1);
+		setXY(x - y1, y - x1, x + y1, y - x1);
+		LCD_Write_Repeated_DATA(ch, cl, y1 + y1);
 	}
 	sbi(P_CS, B_CS);
 	clrXY();
@@ -1719,17 +1766,6 @@ void UTFT::drawLine(int x1, int y1, int x2, int y2)
 	uint8_t ch=((fcolorr&248)|fcolorg>>5);
 	uint8_t cl=((fcolorg&28)<<3|fcolorb>>3);
 
-	if (((x2-x1)<0))
-	{
-		swap(int, x1, x2);
-		swap(int, y1, y2);
-	}
-    if (((y2-y1)<0))
-	{
-		swap(int, x1, x2);
-		swap(int, y1, y2);
-	}
-
 	if (y1==y2)
 	{
 		if (x1>x2)
@@ -1746,93 +1782,65 @@ void UTFT::drawLine(int x1, int y1, int x2, int y2)
 		}
 		drawVLine(x1, y1, y2-y1);
 	}
-	else if (abs(x2-x1)>abs(y2-y1))
-	{
-		cbi(P_CS, B_CS);
-		double delta=(double(y2-y1)/double(x2-x1));
-		double ty=double(y1);
-		if (x1>x2)
-		{
-			for (int i=x1; i>=x2; i--)
-			{
-				setXY(i, int(ty+0.5), i, int(ty+0.5));
-				LCD_Write_DATA(ch, cl);
-        		ty=ty-delta;
-			}
-		}
-		else
-		{
-			for (int i=x1; i<=x2; i++)
-			{
-				setXY(i, int(ty+0.5), i, int(ty+0.5));
-				LCD_Write_DATA(ch, cl);
-        		ty=ty+delta;
-			}
-		}
-		sbi(P_CS, B_CS);
-	}
 	else
 	{
+		// Draw a line using the Bresenham Algorithm (thanks Wikipedia)
+		int dx = (x2 >= x1) ? x2 - x1 : x1 - x2;
+		int dy = (y2 >= y1) ? y2 - y1 : y1 - y2;
+		int sx = (x1 < x2) ? 1 : -1;
+		int sy = (y1 < y2) ? 1 : -1;
+		int err = dx - dy;
+	 
 		cbi(P_CS, B_CS);
-		double delta=(float(x2-x1)/float(y2-y1));
-		double tx=float(x1);
-        if (y1>y2)
-        {
-			for (int i=y2+1; i>y1; i--)
-			{
-		 		setXY(int(tx+0.5), i, int(tx+0.5), i);
-				LCD_Write_DATA(ch, cl);
-        		tx=tx+delta;
+		for (;;)
+		{
+			setXY(x1, y1, x1, y1);
+			LCD_Write_DATA(ch, cl);
+			if (x1 == x2 && y1 == y2) break;
+			int e2 = err + err;
+			if (e2 > -dy)
+			{ 
+				err -= dy;
+				x1 += sx;
 			}
-        }
-        else
-        {
-			for (int i=y1; i<y2+1; i++)
-			{
-		 		setXY(int(tx+0.5), i, int(tx+0.5), i);
-				LCD_Write_DATA(ch, cl);
-        		tx=tx+delta;
+			if (e2 < dx)
+			{ 
+				err += dx;
+				y1 += sy;
 			}
-        }
+		}
 		sbi(P_CS, B_CS);
 	}
 
 	clrXY();
 }
 
-void UTFT::drawHLine(int x, int y, int l)
+void UTFT::drawHLine(int x, int y, int len)
 {
 	uint8_t ch=((fcolorr&248)|fcolorg>>5);
 	uint8_t cl=((fcolorg&28)<<3|fcolorb>>3);
 
 	cbi(P_CS, B_CS);
-	setXY(x, y, x+l, y);
-	for (int i=0; i<l+1; i++)
-	{
-		LCD_Write_DATA(ch, cl);
-	}
+	setXY(x, y, x+len, y);
+	LCD_Write_Repeated_DATA(ch, cl, len + 1);
 	sbi(P_CS, B_CS);
 	clrXY();
 }
 
-void UTFT::drawVLine(int x, int y, int l)
+void UTFT::drawVLine(int x, int y, int len)
 {
 	uint8_t ch=((fcolorr&248)|fcolorg>>5);
 	uint8_t cl=((fcolorg&28)<<3|fcolorb>>3);
 
 	cbi(P_CS, B_CS);
-	setXY(x, y, x, y+l);
-	for (int i=0; i<l; i++)
-	{
-		LCD_Write_DATA(ch, cl);
-	}
+	setXY(x, y, x, y+len);
+	LCD_Write_Repeated_DATA(ch, cl, len + 1);
 	sbi(P_CS, B_CS);
 	clrXY();
 }
 
 void UTFT::printChar(byte c, int x, int y)
 {
-	cbi(P_CS, B_CS);
 	cbi(P_CS, B_CS);
   
 	if (orient==PORTRAIT)
@@ -2146,7 +2154,7 @@ void UTFT::drawBitmap(int x, int y, int sx, int sy, bitmapdatatype data, int sca
 			setXY(x, y, x+sx-1, y+sy-1);
 			for (int tc=0; tc<(sx*sy); tc++)
 			{
-				uint16_t col=pgm_read_word(&data[tc]);
+				uint16_t col = pgm_read_word(&data[tc]);
 				LCD_Write_DATA(col>>8, col & 0xff);
 			}
 			sbi(P_CS, B_CS);
@@ -2175,14 +2183,13 @@ void UTFT::drawBitmap(int x, int y, int sx, int sy, bitmapdatatype data, int sca
 			{
 				setXY(x, y+(ty*scale), x+((sx*scale)-1), y+(ty*scale)+scale);
 				for (int tsy=0; tsy<scale; tsy++)
+				{
 					for (int tx=0; tx<sx; tx++)
 					{
 						uint16_t col = pgm_read_word(&data[(ty*sx)+tx]);
-						for (int tsx=0; tsx<scale; tsx++)
-						{
-							LCD_Write_DATA(col>>8, col & 0xff);
-						}
+						LCD_Write_Repeated_DATA(col>>8, col & 0xff, scale);
 					}
+				}
 			}
 			sbi(P_CS, B_CS);
 		}
@@ -2197,10 +2204,7 @@ void UTFT::drawBitmap(int x, int y, int sx, int sy, bitmapdatatype data, int sca
 					for (int tx=sx; tx>=0; tx--)
 					{
 						uint16_t col=pgm_read_word(&data[(ty*sx)+tx]);
-						for (int tsx=0; tsx<scale; tsx++)
-						{
-							LCD_Write_DATA(col>>8, col & 0xff);
-						}
+						LCD_Write_Repeated_DATA(col>>8, col & 0xff, scale);
 					}
 				}
 			}
@@ -2220,6 +2224,7 @@ void UTFT::drawBitmap(int x, int y, int sx, int sy, bitmapdatatype data, int deg
 	{
 		cbi(P_CS, B_CS);
 		for (int ty=0; ty<sy; ty++)
+		{
 			for (int tx=0; tx<sx; tx++)
 			{
 				uint16_t col=pgm_read_word(&data[(ty*sx)+tx]);
@@ -2230,6 +2235,7 @@ void UTFT::drawBitmap(int x, int y, int sx, int sy, bitmapdatatype data, int deg
 				setXY(newx, newy, newx, newy);
 				LCD_Write_DATA(col>>8,col & 0xff);
 			}
+		}
 		sbi(P_CS, B_CS);
 	}
 	clrXY();
