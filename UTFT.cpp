@@ -64,6 +64,8 @@ UTFT::UTFT(DisplayType model, TransferMode pmode, int RS, int WR, int CS, int RS
 { 
 	displayModel = model;
 	displayTransferMode = pmode;
+	translateFrom = translateTo = NULL;
+
 	switch (model)
 	{
 		case HX8347A:
@@ -194,6 +196,15 @@ void UTFT::LCD_Write_Repeated_DATA(uint8_t VH, uint8_t VL, uint16_t num)
 			LCD_Writ_Bus(0x01,VL);
 			--num;
 		}
+	}
+}
+
+void UTFT::LCD_Write_Repeated_DATA(uint8_t VH, uint8_t VL, uint16_t num1, uint16_t num2)
+{
+	while (num2 != 0)
+	{
+		LCD_Write_Repeated_DATA(VH, VL, num1);
+		--num2;
 	}
 }
 
@@ -1603,18 +1614,15 @@ void UTFT::drawCircle(int x, int y, int radius)
 	int x1 = 0;
 	int y1 = radius;
 	
-	uint8_t ch=((fcolorr&248)|fcolorg>>5);
-	uint8_t cl=((fcolorg&28)<<3|fcolorb>>3);
- 
 	cbi(P_CS, B_CS);
 	setXY(x, y + radius, x, y + radius);
-	LCD_Write_DATA(ch,cl);
+	LCD_Write_DATA(fcolorhi, fcolorlo);
 	setXY(x, y - radius, x, y - radius);
-	LCD_Write_DATA(ch,cl);
+	LCD_Write_DATA(fcolorhi, fcolorlo);
 	setXY(x + radius, y, x + radius, y);
-	LCD_Write_DATA(ch,cl);
+	LCD_Write_DATA(fcolorhi, fcolorlo);
 	setXY(x - radius, y, x - radius, y);
-	LCD_Write_DATA(ch,cl);
+	LCD_Write_DATA(fcolorhi, fcolorlo);
  
 	while(x1 < y1)
 	{
@@ -1628,21 +1636,21 @@ void UTFT::drawCircle(int x, int y, int radius)
 		ddF_x += 2;
 		f += ddF_x;    
 		setXY(x + x1, y + y1, x + x1, y + y1);
-		LCD_Write_DATA(ch,cl);
+		LCD_Write_DATA(fcolorhi, fcolorlo);
 		setXY(x - x1, y + y1, x - x1, y + y1);
-		LCD_Write_DATA(ch,cl);
+		LCD_Write_DATA(fcolorhi, fcolorlo);
 		setXY(x + x1, y - y1, x + x1, y - y1);
-		LCD_Write_DATA(ch,cl);
+		LCD_Write_DATA(fcolorhi, fcolorlo);
 		setXY(x - x1, y - y1, x - x1, y - y1);
-		LCD_Write_DATA(ch,cl);
+		LCD_Write_DATA(fcolorhi, fcolorlo);
 		setXY(x + y1, y + x1, x + y1, y + x1);
-		LCD_Write_DATA(ch,cl);
+		LCD_Write_DATA(fcolorhi, fcolorlo);
 		setXY(x - y1, y + x1, x - y1, y + x1);
-		LCD_Write_DATA(ch,cl);
+		LCD_Write_DATA(fcolorhi, fcolorlo);
 		setXY(x + y1, y - x1, x + y1, y - x1);
-		LCD_Write_DATA(ch,cl);
+		LCD_Write_DATA(fcolorhi, fcolorlo);
 		setXY(x - y1, y - x1, x - y1, y - x1);
-		LCD_Write_DATA(ch,cl);
+		LCD_Write_DATA(fcolorhi, fcolorlo);
 	}
 	sbi(P_CS, B_CS);
 	clrXY();
@@ -1656,16 +1664,13 @@ void UTFT::fillCircle(int x, int y, int radius)
 	int x1 = 0;
 	int y1 = radius;
 	
-	uint8_t ch=((fcolorr&248)|fcolorg>>5);
-	uint8_t cl=((fcolorg&28)<<3|fcolorb>>3);
- 
 	cbi(P_CS, B_CS);
 	setXY(x, y + radius, x, y + radius);
-	LCD_Write_DATA(ch,cl);
+	LCD_Write_DATA(fcolorhi, fcolorlo);
 	setXY(x, y - radius, x, y - radius);
-	LCD_Write_DATA(ch,cl);
+	LCD_Write_DATA(fcolorhi, fcolorlo);
 	setXY(x - radius, y, x + radius, y);
-	LCD_Write_Repeated_DATA(ch, cl, radius + radius);
+	LCD_Write_Repeated_DATA(fcolorhi, fcolorlo, radius + radius);
  
 	while(x1 < y1)
 	{
@@ -1679,13 +1684,13 @@ void UTFT::fillCircle(int x, int y, int radius)
 		ddF_x += 2;
 		f += ddF_x;    
 		setXY(x - x1, y + y1, x + x1, y + y1);
-		LCD_Write_Repeated_DATA(ch, cl, x1 + x1);
+		LCD_Write_Repeated_DATA(fcolorhi, fcolorlo, x1 + x1);
 		setXY(x - x1, y - y1, x + x1, y - y1);
-		LCD_Write_Repeated_DATA(ch, cl, x1 + x1);
+		LCD_Write_Repeated_DATA(fcolorhi, fcolorlo, x1 + x1);
 		setXY(x - y1, y + x1, x + y1, y + x1);
-		LCD_Write_Repeated_DATA(ch, cl, y1 + y1);
+		LCD_Write_Repeated_DATA(fcolorhi, fcolorlo, y1 + y1);
 		setXY(x - y1, y - x1, x + y1, y - x1);
-		LCD_Write_Repeated_DATA(ch, cl, y1 + y1);
+		LCD_Write_Repeated_DATA(fcolorhi, fcolorlo, y1 + y1);
 	}
 	sbi(P_CS, B_CS);
 	clrXY();
@@ -1695,20 +1700,7 @@ void UTFT::clrScr()
 {
 	cbi(P_CS, B_CS);
 	clrXY();
-	if (isParallel())
-	{
-		sbi(P_RS, B_RS);
-	}
-	for (uint32_t i=0; i < (uint32_t)(disp_x_size+1) * (uint32_t)(disp_y_size+1); i++)
-	{
-		if (isParallel())
-			LCD_Writ_Bus(0,0);
-		else
-		{
-			LCD_Writ_Bus(0x01,0);
-			LCD_Writ_Bus(0x01,0);
-		}
-	}
+	LCD_Write_Repeated_DATA(0, 0, disp_x_size+1, disp_y_size+1);
 	sbi(P_CS, B_CS);
 }
 
@@ -1719,56 +1711,33 @@ void UTFT::fillScr(uint8_t r, uint8_t g, uint8_t b)
 
 	cbi(P_CS, B_CS);
 	clrXY();
-	if (isParallel())
-	{
-		sbi(P_RS, B_RS);
-	}
-	for (uint32_t i=0; i < (uint32_t)(disp_x_size+1) * (uint32_t)(disp_y_size+1); i++)
-	{
-		if (isParallel())
-			LCD_Writ_Bus(ch,cl);
-		else
-		{
-			LCD_Writ_Bus(0x01,ch);
-			LCD_Writ_Bus(0x01,cl);
-		}
-	}
+	LCD_Write_Repeated_DATA(ch, cl, disp_x_size+1, disp_y_size+1);
 	sbi(P_CS, B_CS);
 }
 
 void UTFT::setColor(uint8_t r, uint8_t g, uint8_t b)
 {
-	fcolorr=r;
-	fcolorg=g;
-	fcolorb=b;
+	fcolorhi = (r&248)|(g>>5);
+	fcolorlo = ((g&28)<<3)|(b>>3);
 }
 
 void UTFT::setBackColor(uint8_t r, uint8_t g, uint8_t b)
 {
-	bcolorr=r;
-	bcolorg=g;
-	bcolorb=b;
-}
-
-void UTFT::setPixel(uint8_t r, uint8_t g, uint8_t b)
-{
-	LCD_Write_DATA(((r&248)|g>>5), ((g&28)<<3|b>>3));	// rrrrrggggggbbbbb
+	bcolorhi = (r&248)|(g>>5);
+	bcolorlo = ((g&28)<<3)|(b>>3);
 }
 
 void UTFT::drawPixel(int x, int y)
 {
 	cbi(P_CS, B_CS);
 	setXY(x, y, x, y);
-	setPixel(fcolorr, fcolorg, fcolorb);
+	LCD_Write_DATA(fcolorhi, fcolorlo);
 	sbi(P_CS, B_CS);
 	clrXY();
 }
 
 void UTFT::drawLine(int x1, int y1, int x2, int y2)
 {
-	uint8_t ch=((fcolorr&248)|fcolorg>>5);
-	uint8_t cl=((fcolorg&28)<<3|fcolorb>>3);
-
 	if (y1==y2)
 	{
 		if (x1>x2)
@@ -1798,7 +1767,7 @@ void UTFT::drawLine(int x1, int y1, int x2, int y2)
 		for (;;)
 		{
 			setXY(x1, y1, x1, y1);
-			LCD_Write_DATA(ch, cl);
+			LCD_Write_DATA(fcolorhi, fcolorlo);
 			if (x1 == x2 && y1 == y2) break;
 			int e2 = err + err;
 			if (e2 > -dy)
@@ -1820,24 +1789,18 @@ void UTFT::drawLine(int x1, int y1, int x2, int y2)
 
 void UTFT::drawHLine(int x, int y, int len)
 {
-	uint8_t ch=((fcolorr&248)|fcolorg>>5);
-	uint8_t cl=((fcolorg&28)<<3|fcolorb>>3);
-
 	cbi(P_CS, B_CS);
 	setXY(x, y, x+len, y);
-	LCD_Write_Repeated_DATA(ch, cl, len + 1);
+	LCD_Write_Repeated_DATA(fcolorhi, fcolorlo, len + 1);
 	sbi(P_CS, B_CS);
 	clrXY();
 }
 
 void UTFT::drawVLine(int x, int y, int len)
 {
-	uint8_t ch=((fcolorr&248)|fcolorg>>5);
-	uint8_t cl=((fcolorg&28)<<3|fcolorb>>3);
-
 	cbi(P_CS, B_CS);
 	setXY(x, y, x, y+len);
-	LCD_Write_Repeated_DATA(ch, cl, len + 1);
+	LCD_Write_Repeated_DATA(fcolorhi, fcolorlo, len + 1);
 	sbi(P_CS, B_CS);
 	clrXY();
 }
@@ -1851,18 +1814,47 @@ void UTFT::setTextPos(uint16_t x, uint16_t y, uint16_t rm)
     lastCharColData = 0UL;    // flag that we just set the cursor position, so no space before next character
 }
 
+size_t UTFT::print(const char *s, uint16_t x, uint16_t y, uint16_t rm)
+{
+	setTextPos(x, y, rm);
+	print(s);
+}
+
+void UTFT::clearToMargin()
+{
+	if (textXpos <= textRightMargin)
+	{
+		uint8_t ySize = cfont.y_size;
+		if (textYpos + ySize > disp_y_size)
+		{
+			ySize = disp_y_size + 1 - textYpos;
+		}
+
+		cbi(P_CS, B_CS);		
+		setXY(textXpos, textYpos, textRightMargin, textYpos + ySize - 1);
+		LCD_Write_Repeated_DATA(bcolorhi, bcolorlo, textRightMargin - textXpos, ySize);
+		sbi(P_CS, B_CS);
+		clrXY();
+	}
+}
+
+// Write a character. Only works in landscape mode at present.
 size_t UTFT::write(uint8_t c)
 {
+	if (translateFrom != 0)
+	{
+		const char* p = strchr(translateFrom, c);
+		if (p != 0)
+		{
+			c = translateTo[p - translateFrom];
+		}
+	}
+
     if (c < cfont.firstChar || c > cfont.lastChar)
     {
-      return 0;
+		return 0;
     }
     
-	const uint8_t ch=((fcolorr&248)|fcolorg>>5);
-	const uint8_t cl=((fcolorg&28)<<3|fcolorb>>3);
-	const uint8_t bh=((bcolorr&248)|bcolorg>>5);
-	const uint8_t bl=((bcolorg&28)<<3|bcolorb>>3);
-
 	uint8_t ySize = cfont.y_size;
     const uint8_t bytesPerColumn = (ySize + 7)/8;
 	if (textYpos + ySize > disp_y_size)
@@ -1892,7 +1884,7 @@ size_t UTFT::write(uint8_t c)
 		{
 			// Add a single space column after the character
 			setXY(textXpos, textYpos, textXpos, textYpos + cfont.y_size - 1);
-			LCD_Write_Repeated_DATA(bl, bh, cfont.y_size);
+			LCD_Write_Repeated_DATA(bcolorhi, bcolorlo, cfont.y_size);
 			++textXpos;
 		}      
     }
@@ -1910,11 +1902,11 @@ size_t UTFT::write(uint8_t c)
 		{
 			if (colData & 1u)
 			{
-				LCD_Write_DATA(cl, ch);
+				LCD_Write_DATA(fcolorhi, fcolorlo);
 			}
 			else
 			{
-				LCD_Write_DATA(bl, bh);
+				LCD_Write_DATA(bcolorhi, bcolorlo);
 			}
 			colData >>= 1;
 		}
@@ -1927,310 +1919,15 @@ size_t UTFT::write(uint8_t c)
 	return 1;
 }
 
-#ifndef DISABLE_OLD_PRINT_FUNCS
-
-void UTFT::printChar(byte c, int x, int y)
+// Set up translation for characters. Useful for translating fullstop into decimal point, or changing the width of spaces.
+// Either the first string passed must be NULL, or the two strings must have equal lengths as returned by strlen().
+void UTFT::setTranslation(const char *tFrom, const char *tTo)
 {
-	cbi(P_CS, B_CS);
-  
-	if (orient==PORTRAIT)
-	{
-		setXY(x,y,x+cfont.x_size-1,y+cfont.y_size-1);
-	  
-		uint16_t temp=((c-cfont.firstChar)*((cfont.x_size/8)*cfont.y_size));
-		for(uint16_t j=0; j<((cfont.x_size/8)*cfont.y_size); j++)
-		{
-			uint8_t ch = pgm_read_byte(&cfont.font[temp]);
-			for(uint8_t i=0; i<8; i++)
-			{   
-				if((ch&(1<<(7-i)))!=0)   
-				{
-					setPixel(fcolorr, fcolorg, fcolorb);
-				} 
-				else
-				{
-					setPixel(bcolorr, bcolorg, bcolorb);
-				}   
-			}
-			temp++;
-		}
-	}
-	else
-	{
-		uint16_t temp=((c-cfont.firstChar)*((cfont.x_size/8)*cfont.y_size));
-
-		for(uint16_t j=0;j<((cfont.x_size/8)*cfont.y_size);j+=(cfont.x_size/8))
-		{
-			setXY(x,y+(j/(cfont.x_size/8)),x+cfont.x_size-1,y+(j/(cfont.x_size/8)));
-			for (int zz=(cfont.x_size/8)-1; zz>=0; zz--)
-			{
-				uint8_t ch=pgm_read_byte(&cfont.font[temp+zz]);
-				for(uint8_t i=0;i<8;i++)
-				{   
-					if((ch&(1<<i))!=0)   
-					{
-						setPixel(fcolorr, fcolorg, fcolorb);
-					} 
-					else
-					{
-						setPixel(bcolorr, bcolorg, bcolorb);
-					}   
-				}
-			}
-			temp+=(cfont.x_size/8);
-		}
-	}
-	sbi(P_CS, B_CS);
-	clrXY();
+	translateFrom = tFrom;
+	translateTo = tTo;
 }
 
-#if 0
-void UTFT::rotateChar(byte c, int x, int y, int pos, int deg)
-{
-	double radian = deg*0.0175;  
-
-	cbi(P_CS, B_CS);
-
-	uint16_t temp=((c-cfont.firstChar)*((cfont.x_size/8)*cfont.y_size));
-	for(uint8_t j=0;j<cfont.y_size;j++) 
-	{
-		for (int zz=0; zz<(cfont.x_size/8); zz++)
-		{
-			uint8_t ch = pgm_read_byte(&cfont.font[temp+zz]); 
-			for(uint8_t i=0;i<8;i++)
-			{   
-				int newx=x+(((i+(zz*8)+(pos*cfont.x_size))*cos(radian))-((j)*sin(radian)));
-				int newy=y+(((j)*cos(radian))+((i+(zz*8)+(pos*cfont.x_size))*sin(radian)));
-
-				setXY(newx,newy,newx+1,newy+1);
-				
-				if((ch&(1<<(7-i)))!=0)   
-				{
-					setPixel(fcolorr, fcolorg, fcolorb);
-				} 
-				else  
-				{
-					setPixel(bcolorr, bcolorg, bcolorb);
-				}   
-			}
-		}
-		temp+=(cfont.x_size/8);
-	}
-	sbi(P_CS, B_CS);
-	clrXY();
-}
-#endif
-
-void UTFT::print(const char *st, int x, int y, int deg)
-{
-	size_t stl = strlen(st);
-
-	if (orient==PORTRAIT)
-	{
-		if (x==RIGHT)
-			x=(disp_x_size+1)-(stl*cfont.x_size);
-		if (x==CENTER)
-			x=((disp_x_size+1)-(stl*cfont.x_size))/2;
-	}
-	else
-	{
-		if (x==RIGHT)
-			x=(disp_y_size+1)-(stl*cfont.x_size);
-		if (x==CENTER)
-			x=((disp_y_size+1)-(stl*cfont.x_size))/2;
-	}
-
-	for (size_t i=0; i<stl; i++)
-	{
-		if (deg==0)
-			printChar(*st++, x + (i*(cfont.x_size)), y);
-#if 0
-		else
-			rotateChar(*st++, x, y, i, deg);
-#endif
-	}
-}
-
-#if 0
-void UTFT::print(String st, int x, int y, int deg)
-{
-	char buf[st.length()+1];
-
-	st.toCharArray(buf, st.length()+1);
-	print(buf, x, y, deg);
-}
-#endif
-
-void UTFT::printNumI(long num, int x, int y, int length, char filler)
-{
-	char buf[25];
-	char st[27];
-	boolean neg=false;
-	int c=0, f=0;
-  
-	if (num==0)
-	{
-		if (length!=0)
-		{
-			for (c=0; c<(length-1); c++)
-			{
-				st[c]=filler;
-			}
-			st[c]=48;
-			st[c+1]=0;
-		}
-		else
-		{
-			st[0]=48;
-			st[1]=0;
-		}
-	}
-	else
-	{
-		if (num<0)
-		{
-			neg=true;
-			num=-num;
-		}
-	  
-		while (num>0)
-		{
-			buf[c]=48+(num % 10);
-			c++;
-			num=(num-(num % 10))/10;
-		}
-		buf[c]=0;
-	  
-		if (neg)
-		{
-			st[0]=45;
-		}
-	  
-		if (length>(c+neg))
-		{
-			for (int i=0; i<(length-c-neg); i++)
-			{
-				st[i+neg]=filler;
-				f++;
-			}
-		}
-
-		for (int i=0; i<c; i++)
-		{
-			st[i+neg+f]=buf[c-i-1];
-		}
-		st[c+neg+f]=0;
-
-	}
-
-	print(st,x,y);
-}
-
-void UTFT::printNumF(double num, byte dec, int x, int y, char divider, int length, char filler)
-{
-	char buf[25];
-	char st[27];
-	boolean neg=false;
-	int c=0, f=0;
-  
-	if (dec<1)
-		dec=1;
-	if (dec>5)
-		dec=5;
-	  
-	if (num==0)
-	{
-		if (length!=0)
-		{
-			for (c=0; c<(length-2-dec); c++)
-			{
-				st[c]=filler;
-			}
-			st[c]=48;
-			st[c+1]=divider;
-			for (int i=0; i<dec; i++)
-			{
-				st[c+2+i]=48;
-			}
-			st[c+2+dec]=0;
-		}
-		else
-		{
-			st[0]=48;
-			st[1]=divider;
-			for (int i=0; i<dec; i++)
-			{
-				st[2+i]=48;
-			}
-			st[2+dec]=0;
-		}
-	}
-	else
-	{
-		if (num<0)
-		{
-			neg=true;
-			num=-num;
-		}
-	  
-		int mult = 1;
-		for (int j = 0; j < dec; j++)
-		{
-			mult = mult * 10;
-		}
-		uint32_t inum = uint32_t(num*mult + 0.5);
-	  
-		while (inum>0)
-		{
-			buf[c]=48+(inum % 10);
-			c++;
-			inum=(inum-(inum % 10))/10;
-		}
-		if ((num<1) and (num>0))
-		{
-			buf[c]=48;
-			c++;
-		}
-		while (c<(dec+1))
-		{
-			buf[c]=48;
-			c++;
-		}
-		buf[c]=0;
-	  
-		if (neg)
-		{
-			st[0]=45;
-		}
-	  
-		if (length>(c+neg-1))
-		{
-			for (int i=0; i<(length-c-neg-1); i++)
-			{
-				st[i+neg]=filler;
-				f++;
-			}
-		}
-
-		int c2 = (neg) ? 1 : 0;
-		for (int i=0; i<c; i++)
-		{
-			st[c2+f]=buf[c-i-1];
-			c2++;
-			if ((c-(c2-neg))==dec)
-			{
-				st[c2+f]=divider;
-				c2++;
-			}
-		}
-		st[c2+f]=0;
-	}
-
-	print(st,x,y);
-}
-#endif
-
-void UTFT::setFont(uint8_t* font)
+void UTFT::setFont(const uint8_t* font)
 {
 	cfont.font=font;
 	cfont.x_size=fontbyte(0);

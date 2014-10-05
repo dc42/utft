@@ -48,10 +48,6 @@
 #ifndef UTFT_h
 #define UTFT_h
 
-#define LEFT 0
-#define RIGHT 9999
-#define CENTER 9998
-
 #define PORTRAIT 0
 #define LANDSCAPE 1
 
@@ -141,7 +137,7 @@ enum TransferMode
 
 struct FontDescriptor
 {
-	uint8_t* font;
+	const uint8_t* font;
 	uint8_t x_size;
 	uint8_t y_size;
 	uint8_t firstChar;
@@ -167,16 +163,16 @@ class UTFT : public Print
 		void setBackColor(uint8_t r, uint8_t g, uint8_t b);
 		
 		// New print functions
+		// Set up translation for characters. Useful for translating fullstop into decimal point, or changing the width of spaces.
+		// Either the first string passed must be NULL, or the two strings must have equal lengths as returned by strlen().
+		void setTranslation(const char *tFrom, const char *tTo);
 		virtual size_t write(uint8_t c) /*override*/;
 		void setTextPos(uint16_t x, uint16_t y, uint16_t rm = 9999);
+		void clearToMargin();
+		size_t print(const char *s, uint16_t x, uint16_t y, uint16_t rm = 9999);
+		using Print::print;
 		
-#ifndef DISABLE_OLD_PRINT_FUNCS
-		void print(const char *st, int x, int y, int deg = 0);
-		void print(String st, int x, int y, int deg = 0);
-		void printNumI(long num, int x, int y, int length = 0, char filler=' ');
-		void printNumF(double num, byte dec, int x, int y, char divider = '.', int length = 0, char filler = ' ');
-#endif
-		void setFont(uint8_t* font);
+		void setFont(const uint8_t* font);
 		void drawBitmap(int x, int y, int sx, int sy, bitmapdatatype data, int scale = 1);
 #ifndef DISABLE_BITMAP_ROTATE
 		void drawBitmap(int x, int y, int sx, int sy, bitmapdatatype data, int deg, int rox, int roy);
@@ -186,10 +182,12 @@ class UTFT : public Print
 		void setContrast(uint8_t c);
 		uint16_t getDisplayXSize() const;
 		uint16_t getDisplayYSize() const;
+		uint16_t getTextX() const { return textXpos; }
+		uint16_t getTextY() const { return textYpos; }
 
 	protected:
-		uint8_t fcolorr, fcolorg, fcolorb;
-		uint8_t bcolorr, bcolorg, bcolorb;
+		uint8_t fcolorhi, fcolorlo;
+		uint8_t bcolorhi, bcolorlo;
 		uint8_t orient;
 		uint16_t disp_x_size, disp_y_size;
 		DisplayType displayModel;
@@ -199,6 +197,8 @@ class UTFT : public Print
 		FontDescriptor cfont;
 		uint16_t textXpos, textYpos, textRightMargin;
 		uint32_t lastCharColData;		// used for auto kerning
+		const char* translateFrom;
+		const char* translateTo;
 
 		// Hardware interface
 		void LCD_Writ_Bus(uint8_t VH, uint8_t VL);
@@ -209,19 +209,14 @@ class UTFT : public Print
 		void LCD_Write_DATA(uint8_t VH, uint8_t VL);
 		void LCD_Write_DATA(uint8_t VL);
 		void LCD_Write_Repeated_DATA(uint8_t VH, uint8_t VL, uint16_t num);
+		void LCD_Write_Repeated_DATA(uint8_t VH, uint8_t VL, uint16_t num1, uint16_t num2);
 		void LCD_Write_COM_DATA(uint8_t com1, uint16_t dat1);
 		void LCD_Write_COM_DATA8(uint8_t com1, uint8_t dat1);
 		
-		void setPixel(uint8_t r, uint8_t g, uint8_t b);
 		void drawHLine(int x, int y, int len);
 		void drawVLine(int x, int y, int len);
 		void setXY(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2);
 		void clrXY();
-
-#ifndef DISABLE_OLD_PRINT_FUNCS
-		void printChar(byte c, int x, int y);
-		void rotateChar(byte c, int x, int y, int pos, int deg);
-#endif
 		
 	private:
 		bool isParallel() const;
