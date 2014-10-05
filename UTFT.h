@@ -151,7 +151,7 @@ struct _current_font
 class UTFT
 {
 	public:
-		UTFT(DisplayType model, TransferMode pMode, int RS, int WR, int CS, int RST, int SER = 0);
+		UTFT(DisplayType model, TransferMode pMode, int RS, int WR, int CS, int RST, int SER_LATCH = 0);
 		void InitLCD(uint8_t orientation = LANDSCAPE);
 		void clrScr();
 		void drawPixel(int x, int y);

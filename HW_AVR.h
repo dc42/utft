@@ -165,15 +165,12 @@ void UTFT::LCD_Writ_Bus(uint8_t VH, uint8_t VL)
 		// We use the same 8 pins to pass first the high byte and then the low byte. We latch the high byte in a 74HC373.
 #if defined(__AVR_ATmega32U4__)
 		// Use PORTF 0-1, PORTD 0-1 and PORTF 4-7 to pass first the high byte and then the low byte (NB this is not pin-compatible with the Uno)
-		// Use PORTD 4 to control the latch that holds the high byte
 		// Write the high byte
-		// Latch the high byte
-		PORTD |= 0x10;		// set latch to transparent
 		PORTF = VH;
 		cli();				// disable interrupts in case an ISR writes to other bits of port D
 		PORTD = (PORTD & 0xFC) | ((VH >> 2) & 0x03);
 		sei();
-		PORTD &= ~(0x10);	// set latch to store data
+		pulse_high(P_SCL, B_SCL);		// latch the high byte
 		
 		// Write the low byte
 		PORTF = VL;
@@ -181,7 +178,9 @@ void UTFT::LCD_Writ_Bus(uint8_t VH, uint8_t VL)
 		PORTD = (PORTD & 0xFC) | ((VL >> 2) & 0x03);
 		sei();
 #else
-		// Pin assignments for atmega328 to be decided
+		PORTD = VH;
+		pulse_high(P_SCL, B_SCL);
+		PORTD = VL;
 #endif
 		pulse_low(P_WR, B_WR);		
 		break;
@@ -213,7 +212,7 @@ void UTFT::_set_direction_registers()
 	if (displayTransferMode == TMode9bit)
 	{
 		DDRF |= 0xF3;
-		DDRD |= 0x13;
+		DDRD |= 0x03;
 	}
 	else
 	{

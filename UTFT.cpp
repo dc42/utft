@@ -60,7 +60,7 @@ inline bool UTFT::isParallel() const
 	return displayTransferMode >= TModeLowestParallel;
 }
 
-UTFT::UTFT(DisplayType model, TransferMode pmode, int RS, int WR, int CS, int RST, int SER)
+UTFT::UTFT(DisplayType model, TransferMode pmode, int RS, int WR, int CS, int RST, int SER_LATCH)
 { 
 	displayModel = model;
 	displayTransferMode = pmode;
@@ -118,6 +118,12 @@ UTFT::UTFT(DisplayType model, TransferMode pmode, int RS, int WR, int CS, int RS
 		pinMode(WR,OUTPUT);
 		pinMode(CS,OUTPUT);
 		pinMode(RST,OUTPUT);
+		if (displayTransferMode == TMode9bit)
+		{
+			P_SCL	= portOutputRegister(digitalPinToPort(SER_LATCH));
+			B_SCL	= digitalPinToBitMask(SER_LATCH);
+			pinMode(SER_LATCH,OUTPUT);
+		}
 	}
 	else
 	{
@@ -129,11 +135,11 @@ UTFT::UTFT(DisplayType model, TransferMode pmode, int RS, int WR, int CS, int RS
 		B_CS	= digitalPinToBitMask(CS);
 		P_RST	= portOutputRegister(digitalPinToPort(RST));
 		B_RST	= digitalPinToBitMask(RST);
-		if (displayTransferMode != TModeSerial4pin)
+		if (displayTransferMode == TModeSerial5pin)
 		{
-			P_RS	= portOutputRegister(digitalPinToPort(SER));
-			B_RS	= digitalPinToBitMask(SER);
-			pinMode(SER,OUTPUT);
+			P_RS	= portOutputRegister(digitalPinToPort(SER_LATCH));
+			B_RS	= digitalPinToBitMask(SER_LATCH);
+			pinMode(SER_LATCH,OUTPUT);
 		}
 		pinMode(RS,OUTPUT);
 		pinMode(WR,OUTPUT);
