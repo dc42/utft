@@ -225,6 +225,9 @@ void UTFT::LCD_Write_COM_DATA8(uint8_t com1, uint8_t dat1)
 void UTFT::InitLCD(byte orientation)
 {
 	orient=orientation;
+	textXpos = 0;
+	textYpos = 0;
+	lastCharColData = 0UL;
 
 	sbi(P_RST, B_RST);
 	delay(5); 
@@ -1696,7 +1699,7 @@ void UTFT::clrScr()
 	{
 		sbi(P_RS, B_RS);
 	}
-	for (uint32_t i=0; i<((disp_x_size+1)*(disp_y_size+1)); i++)
+	for (uint32_t i=0; i < (uint32_t)(disp_x_size+1) * (uint32_t)(disp_y_size+1); i++)
 	{
 		if (isParallel())
 			LCD_Writ_Bus(0,0);
@@ -1720,7 +1723,7 @@ void UTFT::fillScr(uint8_t r, uint8_t g, uint8_t b)
 	{
 		sbi(P_RS, B_RS);
 	}
-	for (uint32_t i=0; i<((disp_x_size+1)*(disp_y_size+1)); i++)
+	for (uint32_t i=0; i < (uint32_t)(disp_x_size+1) * (uint32_t)(disp_y_size+1); i++)
 	{
 		if (isParallel())
 			LCD_Writ_Bus(ch,cl);
@@ -1839,6 +1842,93 @@ void UTFT::drawVLine(int x, int y, int len)
 	clrXY();
 }
 
+// New print functions
+void UTFT::setTextPos(uint16_t x, uint16_t y, uint16_t rm)
+{
+	textXpos = x;
+	textYpos = y;
+	textRightMargin = (rm > disp_x_size) ? disp_x_size + 1 : rm;
+    lastCharColData = 0UL;    // flag that we just set the cursor position, so no space before next character
+}
+
+size_t UTFT::write(uint8_t c)
+{
+    if (c < cfont.firstChar || c > cfont.lastChar)
+    {
+      return 0;
+    }
+    
+	const uint8_t ch=((fcolorr&248)|fcolorg>>5);
+	const uint8_t cl=((fcolorg&28)<<3|fcolorb>>3);
+	const uint8_t bh=((bcolorr&248)|bcolorg>>5);
+	const uint8_t bl=((bcolorg&28)<<3|bcolorb>>3);
+
+	uint8_t ySize = cfont.y_size;
+    const uint8_t bytesPerColumn = (ySize + 7)/8;
+	if (textYpos + ySize > disp_y_size)
+	{
+		ySize = disp_y_size + 1 - textYpos;
+	}
+    const uint8_t bytesPerChar = (bytesPerColumn * cfont.x_size) + 1;
+    const prog_uint8_t PROGMEM *fontPtr = (const prog_uint8_t*)cfont.font + (bytesPerChar * (c - cfont.firstChar));
+    
+	const uint32_t cmask = (1UL << cfont.y_size) - 1;
+    
+    uint8_t nCols = pgm_read_byte_near(fontPtr++);
+	cbi(P_CS, B_CS);
+
+    // Decide whether to add a space column first (auto-kerning)
+    // We don't add a space column before a space character.
+    // We add a space column after a space character if we would have added one between the preceding and following characters.
+    if (textXpos < textRightMargin)
+    {
+		uint32_t thisCharColData = pgm_read_dword_near(fontPtr) & cmask;    // atmega328p is little-endian
+		if (thisCharColData == 0)  // for characters with deliberate space row at the start, e.g. decimal point
+		{
+			thisCharColData = pgm_read_dword_near(fontPtr + bytesPerColumn) & cmask;	// get the next column instead
+		}
+		bool wantSpace = ((thisCharColData | (thisCharColData << 1)) & (lastCharColData | (lastCharColData << 1))) != 0;
+		if (wantSpace)
+		{
+			// Add a single space column after the character
+			setXY(textXpos, textYpos, textXpos, textYpos + cfont.y_size - 1);
+			LCD_Write_Repeated_DATA(bl, bh, cfont.y_size);
+			++textXpos;
+		}      
+    }
+    
+    while (nCols != 0 && textXpos < textRightMargin)
+    {
+		uint32_t colData = pgm_read_dword_near(fontPtr);
+		fontPtr += bytesPerColumn;
+		if (colData != 0)
+		{
+			lastCharColData = colData & cmask;
+		}
+		setXY(textXpos, textYpos, textXpos, textYpos + ySize - 1);
+		for (uint8_t i = 0; i < ySize; ++i)
+		{
+			if (colData & 1u)
+			{
+				LCD_Write_DATA(cl, ch);
+			}
+			else
+			{
+				LCD_Write_DATA(bl, bh);
+			}
+			colData >>= 1;
+		}
+		--nCols;
+		++textXpos;
+    }
+ 	sbi(P_CS, B_CS);
+	clrXY();
+   
+	return 1;
+}
+
+#ifndef DISABLE_OLD_PRINT_FUNCS
+
 void UTFT::printChar(byte c, int x, int y)
 {
 	cbi(P_CS, B_CS);
@@ -1847,7 +1937,7 @@ void UTFT::printChar(byte c, int x, int y)
 	{
 		setXY(x,y,x+cfont.x_size-1,y+cfont.y_size-1);
 	  
-		uint16_t temp=((c-cfont.offset)*((cfont.x_size/8)*cfont.y_size))+4;
+		uint16_t temp=((c-cfont.firstChar)*((cfont.x_size/8)*cfont.y_size));
 		for(uint16_t j=0; j<((cfont.x_size/8)*cfont.y_size); j++)
 		{
 			uint8_t ch = pgm_read_byte(&cfont.font[temp]);
@@ -1867,7 +1957,7 @@ void UTFT::printChar(byte c, int x, int y)
 	}
 	else
 	{
-		uint16_t temp=((c-cfont.offset)*((cfont.x_size/8)*cfont.y_size))+4;
+		uint16_t temp=((c-cfont.firstChar)*((cfont.x_size/8)*cfont.y_size));
 
 		for(uint16_t j=0;j<((cfont.x_size/8)*cfont.y_size);j+=(cfont.x_size/8))
 		{
@@ -1894,13 +1984,14 @@ void UTFT::printChar(byte c, int x, int y)
 	clrXY();
 }
 
+#if 0
 void UTFT::rotateChar(byte c, int x, int y, int pos, int deg)
 {
 	double radian = deg*0.0175;  
 
 	cbi(P_CS, B_CS);
 
-	uint16_t temp=((c-cfont.offset)*((cfont.x_size/8)*cfont.y_size))+4;
+	uint16_t temp=((c-cfont.firstChar)*((cfont.x_size/8)*cfont.y_size));
 	for(uint8_t j=0;j<cfont.y_size;j++) 
 	{
 		for (int zz=0; zz<(cfont.x_size/8); zz++)
@@ -1928,8 +2019,9 @@ void UTFT::rotateChar(byte c, int x, int y, int pos, int deg)
 	sbi(P_CS, B_CS);
 	clrXY();
 }
+#endif
 
-void UTFT::print(char *st, int x, int y, int deg)
+void UTFT::print(const char *st, int x, int y, int deg)
 {
 	size_t stl = strlen(st);
 
@@ -1952,12 +2044,14 @@ void UTFT::print(char *st, int x, int y, int deg)
 	{
 		if (deg==0)
 			printChar(*st++, x + (i*(cfont.x_size)), y);
+#if 0
 		else
 			rotateChar(*st++, x, y, i, deg);
+#endif
 	}
 }
 
-#ifndef DISABLE_STRINGS
+#if 0
 void UTFT::print(String st, int x, int y, int deg)
 {
 	char buf[st.length()+1];
@@ -2134,14 +2228,16 @@ void UTFT::printNumF(double num, byte dec, int x, int y, char divider, int lengt
 
 	print(st,x,y);
 }
+#endif
 
 void UTFT::setFont(uint8_t* font)
 {
 	cfont.font=font;
 	cfont.x_size=fontbyte(0);
 	cfont.y_size=fontbyte(1);
-	cfont.offset=fontbyte(2);
-	cfont.numchars=fontbyte(3);
+	cfont.firstChar=fontbyte(2);
+	cfont.lastChar=fontbyte(3);
+	cfont.font += 4;
 }
 
 void UTFT::drawBitmap(int x, int y, int sx, int sy, bitmapdatatype data, int scale)
@@ -2214,6 +2310,8 @@ void UTFT::drawBitmap(int x, int y, int sx, int sy, bitmapdatatype data, int sca
 	clrXY();
 }
 
+#ifndef DISABLE_BITMAP_ROTATE
+
 void UTFT::drawBitmap(int x, int y, int sx, int sy, bitmapdatatype data, int deg, int rox, int roy)
 {
 	double radian = deg*0.0175;  
@@ -2240,6 +2338,8 @@ void UTFT::drawBitmap(int x, int y, int sx, int sy, bitmapdatatype data, int deg
 	}
 	clrXY();
 }
+
+#endif
 
 void UTFT::lcdOff()
 {
@@ -2278,7 +2378,7 @@ void UTFT::setContrast(uint8_t c)
 	sbi(P_CS, B_CS);
 }
 
-int UTFT::getDisplayXSize() const
+uint16_t UTFT::getDisplayXSize() const
 {
 	if (orient==PORTRAIT)
 		return disp_x_size+1;
@@ -2286,7 +2386,7 @@ int UTFT::getDisplayXSize() const
 		return disp_y_size+1;
 }
 
-int UTFT::getDisplayYSize() const
+uint16_t UTFT::getDisplayYSize() const
 {
 	if (orient==PORTRAIT)
 		return disp_y_size+1;

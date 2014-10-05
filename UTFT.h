@@ -139,16 +139,16 @@ enum TransferMode
 	#include "HW_PIC32_defines.h"
 #endif
 
-struct _current_font
+struct FontDescriptor
 {
 	uint8_t* font;
 	uint8_t x_size;
 	uint8_t y_size;
-	uint8_t offset;
-	uint8_t numchars;
+	uint8_t firstChar;
+	uint8_t lastChar;
 };
 
-class UTFT
+class UTFT : public Print
 {
 	public:
 		UTFT(DisplayType model, TransferMode pMode, int RS, int WR, int CS, int RST, int SER_LATCH = 0);
@@ -165,47 +165,63 @@ class UTFT
 		void fillCircle(int x, int y, int radius);
 		void setColor(uint8_t r, uint8_t g, uint8_t b);
 		void setBackColor(uint8_t r, uint8_t g, uint8_t b);
-		void print(char *st, int x, int y, int deg = 0);
-#ifndef DISABLE_STRINGS
+		
+		// New print functions
+		virtual size_t write(uint8_t c) /*override*/;
+		void setTextPos(uint16_t x, uint16_t y, uint16_t rm = 9999);
+		
+#ifndef DISABLE_OLD_PRINT_FUNCS
+		void print(const char *st, int x, int y, int deg = 0);
 		void print(String st, int x, int y, int deg = 0);
-#endif
 		void printNumI(long num, int x, int y, int length = 0, char filler=' ');
 		void printNumF(double num, byte dec, int x, int y, char divider = '.', int length = 0, char filler = ' ');
+#endif
 		void setFont(uint8_t* font);
 		void drawBitmap(int x, int y, int sx, int sy, bitmapdatatype data, int scale = 1);
+#ifndef DISABLE_BITMAP_ROTATE
 		void drawBitmap(int x, int y, int sx, int sy, bitmapdatatype data, int deg, int rox, int roy);
+#endif
 		void lcdOff();
 		void lcdOn();
 		void setContrast(uint8_t c);
-		int  getDisplayXSize() const;
-		int	 getDisplayYSize() const;
+		uint16_t getDisplayXSize() const;
+		uint16_t getDisplayYSize() const;
 
 	protected:
 		uint8_t fcolorr, fcolorg, fcolorb;
 		uint8_t bcolorr, bcolorg, bcolorb;
 		uint8_t orient;
-		long disp_x_size, disp_y_size;
+		uint16_t disp_x_size, disp_y_size;
 		DisplayType displayModel;
 		TransferMode displayTransferMode;
 		regtype *P_RS, *P_WR, *P_CS, *P_RST, *P_SDA, *P_SCL;
 		regsize B_RS, B_WR, B_CS, B_RST, B_SDA, B_SCL;
-		_current_font cfont;
+		FontDescriptor cfont;
+		uint16_t textXpos, textYpos, textRightMargin;
+		uint32_t lastCharColData;		// used for auto kerning
 
+		// Hardware interface
 		void LCD_Writ_Bus(uint8_t VH, uint8_t VL);
+		void _set_direction_registers();
+
+		// Low level interface
 		void LCD_Write_COM(uint8_t VL);
 		void LCD_Write_DATA(uint8_t VH, uint8_t VL);
 		void LCD_Write_DATA(uint8_t VL);
 		void LCD_Write_Repeated_DATA(uint8_t VH, uint8_t VL, uint16_t num);
 		void LCD_Write_COM_DATA(uint8_t com1, uint16_t dat1);
 		void LCD_Write_COM_DATA8(uint8_t com1, uint8_t dat1);
+		
 		void setPixel(uint8_t r, uint8_t g, uint8_t b);
 		void drawHLine(int x, int y, int len);
 		void drawVLine(int x, int y, int len);
-		void printChar(byte c, int x, int y);
 		void setXY(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2);
 		void clrXY();
+
+#ifndef DISABLE_OLD_PRINT_FUNCS
+		void printChar(byte c, int x, int y);
 		void rotateChar(byte c, int x, int y, int pos, int deg);
-		void _set_direction_registers();
+#endif
 		
 	private:
 		bool isParallel() const;
