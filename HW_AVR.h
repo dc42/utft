@@ -2,25 +2,26 @@
 #define HW_AVR_h
 
 // *** Hardwarespecific functions ***
-void UTFT::LCD_Writ_Bus(uint8_t VH, uint8_t VL, uint8_t mode)
+void UTFT::LCD_Writ_Bus(uint8_t VH, uint8_t VL)
 {   
-	switch (mode)
+	switch (displayTransferMode)
 	{
-	case 1:
-		if (display_serial_mode==SERIAL_4PIN)
+	case TModeSerial4pin:
+	case TModeSerial5pin:
+		if (displayTransferMode == TModeSerial4pin)
 		{
-		if (VH==1)
-			sbi(P_SDA, B_SDA);
-		else
-			cbi(P_SDA, B_SDA);
-		pulse_low(P_SCL, B_SCL);
+			if (VH==1)
+				sbi(P_SDA, B_SDA);
+			else
+				cbi(P_SDA, B_SDA);
+			pulse_low(P_SCL, B_SCL);
 		}
 		else
 		{
-		if (VH==1)
-			sbi(P_RS, B_RS);
-		else
-			cbi(P_RS, B_RS);
+			if (VH==1)
+				sbi(P_RS, B_RS);
+			else
+				cbi(P_RS, B_RS);
 		}
 
 		if (VL & 0x80)
@@ -64,7 +65,8 @@ void UTFT::LCD_Writ_Bus(uint8_t VH, uint8_t VL, uint8_t mode)
 			cbi(P_SDA, B_SDA);
 		pulse_low(P_SCL, B_SCL);
 		break;
-	case 8:
+
+	case TMode8bit:
 #if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
 		PORTA = VH;
 		pulse_low(P_WR, B_WR);
@@ -157,7 +159,8 @@ void UTFT::LCD_Writ_Bus(uint8_t VH, uint8_t VL, uint8_t mode)
 
 #endif
 		break;
-	case 9:
+
+	case TMode9bit:
 		// This is for using a display with a 16-bit parallel interface with one of the smaller Arduinos.
 		// We use the same 8 pins to pass first the high byte and then the low byte. We latch the high byte in a 74HC373.
 #if defined(__AVR_ATmega32U4__)
@@ -182,7 +185,8 @@ void UTFT::LCD_Writ_Bus(uint8_t VH, uint8_t VL, uint8_t mode)
 #endif
 		pulse_low(P_WR, B_WR);		
 		break;
-	case 16:
+
+	case TMode16bit:
 #if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
 		PORTA = VH;
 		PORTC = VL;
@@ -197,16 +201,16 @@ void UTFT::LCD_Writ_Bus(uint8_t VH, uint8_t VL, uint8_t mode)
 	}
 }
 
-void UTFT::_set_direction_registers(byte mode)
+void UTFT::_set_direction_registers()
 {
 #if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
 	DDRA = 0xFF;
-	if (mode==16)
+	if (displayTransferMode == TMode16bit)
 	{
 		DDRC = 0xFF;
 	}
 #elif defined(__AVR_ATmega32U4__)
-	if (mode == 9)
+	if (displayTransferMode == TMode9bit)
 	{
 		DDRF |= 0xF3;
 		DDRD |= 0x13;
@@ -224,7 +228,7 @@ void UTFT::_set_direction_registers(byte mode)
 	}
 #else
 	DDRD = 0xFF;
-	if (mode==16)
+	if (displayTransferMode == TMode16bit)
 	{
 		DDRB |= 0x3F;
 		DDRC |= 0x03;

@@ -55,48 +55,77 @@
 #define PORTRAIT 0
 #define LANDSCAPE 1
 
-#define HX8347A			0
-#define ILI9327			1
-#define SSD1289			2
-#define ILI9325C		3
-#define ILI9325D_8		4
-#define ILI9325D_16		5
-#define HX8340B_8		6
-#define HX8340B_S		7
-#define HX8352A			8
-#define ST7735			9
-#define PCF8833			10
-#define S1D19122		11
-#define SSD1963_480		12
-#define SSD1963_800		13
-#define S6D1121_8		14
-#define S6D1121_16		15
+enum DisplayType {
+	HX8347A,
+	ILI9327,
+	SSD1289,
+	ILI9325C,
+	ILI9325D,
+	HX8340B,
+	HX8340B_S,
+	HX8352A,
+	ST7735,
+	PCF8833,
+	S1D19122,
+	SSD1963_480,
+	SSD1963_800,
+	S6D1121,
+	
+	// Aliases for particular display models
+	ITDB32 = HX8347A,								// HX8347-A (16bit)
+	ITDB32WC = ILI9327,								// ILI9327  (16bit)
+	ITDB32S	= SSD1289, TFT01_32 = SSD1289,			// SSD1289  (16bit)
+	ITDB24 = ILI9325C,								// ILI9325C (8bit)
+	ITDB24D = ILI9325D, ITDB24DWOT = ILI9325D,		// ILI9325C (8bit)
+	ITDB28 = ILI9325D, TFT01_24_8 = ILI9325D,		// ILI9325D (8bit)
+	TFT01_24_16 = ILI9325D,							// ILI9325D (16bit)
+	ITDB22 = HX8340B,								// HX8340-B (8bit)
+	ITDB22SP = HX8340B_S,							// HX8340-B (Serial)
+	ITDB32WD = HX8352A,								// HX8352-A (16bit)
+	TFT01_32WD = HX8352A,							// HX8352A	(16bit)
+	ITDB18SP = ST7735,								// ST7735   (Serial)
+	LPH9135 = PCF8833,								// PCF8833	(Serial)
+	ITDB25H = S1D19122,								// S1D19122	(16bit)
+	ITDB43 = SSD1963_480,							// SSD1963	(16bit) 480x272
+	ITDB50 = SSD1963_800,							// SSD1963	(16bit) 800x480
+	ITDB24E = S6D1121,								// S6D1121
+};
 
-#define ITDB32			0	// HX8347-A (16bit)
-#define ITDB32WC		1	// ILI9327  (16bit)
-#define TFT01_32W		1	// ILI9327	(16bit)
-#define ITDB32S			2	// SSD1289  (16bit)
-#define TFT01_32		2	// SSD1289  (16bit)
-#define ITDB24			3	// ILI9325C (8bit)
-#define ITDB24D			4	// ILI9325D (8bit)
-#define ITDB24DWOT		4	// ILI9325D (8bit)
-#define ITDB28			4	// ILI9325D (8bit)
-#define TFT01_24_8		4	// ILI9325D (8bit)
-#define TFT01_24_16		5	// ILI9325D (16bit)
-#define ITDB22			6	// HX8340-B (8bit)
-#define ITDB22SP		7	// HX8340-B (Serial)
-#define ITDB32WD		8	// HX8352-A (16bit)
-#define TFT01_32WD		8	// HX8352A	(16bit)
-#define ITDB18SP		9	// ST7735   (Serial)
-#define LPH9135			10	// PCF8833	(Serial)
-#define ITDB25H			11	// S1D19122	(16bit)
-#define ITDB43			12	// SSD1963	(16bit) 480x272
-#define ITDB50			13	// SSD1963	(16bit) 800x480
-#define ITDB24E_8		14	// S6D1121	(8bit)
-#define ITDB24E_16		15	// S6D1121	(16bit)
-
-#define SERIAL_4PIN		4
-#define SERIAL_5PIN		5
+enum TransferMode
+{
+	// The serial ones must come first
+	TModeSerial4pin,
+	TModeSerial5pin,
+	
+	// All the rest are parallel
+	TModeLowestParallel,
+	TMode8bit = TModeLowestParallel,
+	TMode9bit,
+	TMode16bit,
+	
+	// Aliased for modes of particular display models
+	ITDB32Mode = TMode16bit,							// HX8347-A (16bit)
+	ITDB32WCMode = TMode16bit,							// ILI9327  (16bit)
+	ITDB32SMode	= TMode16bit,							// SSD1289  (16bit)
+	TFT01_32Mode = TMode16bit,							// SSD1289  (16bit)
+	ITDB24Mode = TMode8bit,								// ILI9325C (8bit)
+	ITDB24DMode = TMode8bit,							// ILI9325D (8bit)
+	ITDB24DWOTMode = TMode8bit,							// ILI9325D (8bit)
+	ITDB28Mode = TMode8bit,								// ILI9325D (8bit)
+	TFT01_24_8Mode = TMode8bit,							// ILI9325D (8bit)
+	TFT01_24_16Mode = TMode16bit,						// ILI9325D (16bit)
+	ITDB22Mode = TMode8bit,								// HX8340-B (8bit)
+	ITDB22SPMode = TModeSerial4pin,						// HX8340-B (Serial)
+	ITDB32WDMode = TMode16bit,							// HX8352-A (16bit)
+	TFT01_32WDMode = TMode16bit,						// HX8352A	(16bit)
+	ITDB18SPMode = TModeSerial5pin,						// ST7735   (Serial)
+	LPH9135Mode = TModeSerial5pin,						// PCF8833	(Serial)
+	ITDB25HMode = TMode16bit,							// S1D19122	(16bit)
+	ITDB43Mode = TMode16bit,							// SSD1963	(16bit) 480x272
+	ITDB50Mode = TMode16bit,							// SSD1963	(16bit) 800x480
+	ITDB24E_8Mode = TMode8bit,							// S6D1121	(8bit)
+	ITDB24E_16Mode = TMode16bit							// S6D1121	(16bit)
+};
 
 #if defined(__AVR__)
 	#if defined(ARDUINO) && ARDUINO >= 100
@@ -122,45 +151,47 @@ struct _current_font
 class UTFT
 {
 	public:
-		UTFT();
-		UTFT(byte model, int RS, int WR,int CS, int RST, int SER=0);
-		void InitLCD(byte orientation=LANDSCAPE);
+		UTFT(DisplayType model, TransferMode pMode, int RS, int WR, int CS, int RST, int SER = 0);
+		void InitLCD(uint8_t orientation = LANDSCAPE);
 		void clrScr();
 		void drawPixel(int x, int y);
 		void drawLine(int x1, int y1, int x2, int y2);
-		void fillScr(byte r, byte g, byte b);
+		void fillScr(uint8_t r, uint8_t g, uint8_t b);
 		void drawRect(int x1, int y1, int x2, int y2);
 		void drawRoundRect(int x1, int y1, int x2, int y2);
 		void fillRect(int x1, int y1, int x2, int y2);
 		void fillRoundRect(int x1, int y1, int x2, int y2);
 		void drawCircle(int x, int y, int radius);
 		void fillCircle(int x, int y, int radius);
-		void setColor(byte r, byte g, byte b);
-		void setBackColor(byte r, byte g, byte b);
-		void print(char *st, int x, int y, int deg=0);
-		void print(String st, int x, int y, int deg=0);
-		void printNumI(long num, int x, int y, int length=0, char filler=' ');
-		void printNumF(double num, byte dec, int x, int y, char divider='.', int length=0, char filler=' ');
+		void setColor(uint8_t r, uint8_t g, uint8_t b);
+		void setBackColor(uint8_t r, uint8_t g, uint8_t b);
+		void print(char *st, int x, int y, int deg = 0);
+#ifndef DISABLE_STRINGS
+		void print(String st, int x, int y, int deg = 0);
+#endif
+		void printNumI(long num, int x, int y, int length = 0, char filler=' ');
+		void printNumF(double num, byte dec, int x, int y, char divider = '.', int length = 0, char filler = ' ');
 		void setFont(uint8_t* font);
-		void drawBitmap(int x, int y, int sx, int sy, bitmapdatatype data, int scale=1);
+		void drawBitmap(int x, int y, int sx, int sy, bitmapdatatype data, int scale = 1);
 		void drawBitmap(int x, int y, int sx, int sy, bitmapdatatype data, int deg, int rox, int roy);
 		void lcdOff();
 		void lcdOn();
-		void setContrast(char c);
-		int  getDisplayXSize();
-		int	 getDisplayYSize();
+		void setContrast(uint8_t c);
+		int  getDisplayXSize() const;
+		int	 getDisplayYSize() const;
 
 	protected:
-		byte fcolorr,fcolorg,fcolorb;
-		byte bcolorr,bcolorg,bcolorb;
-		byte orient;
+		uint8_t fcolorr, fcolorg, fcolorb;
+		uint8_t bcolorr, bcolorg, bcolorb;
+		uint8_t orient;
 		long disp_x_size, disp_y_size;
-		byte display_model, display_transfer_mode, display_serial_mode;
+		DisplayType displayModel;
+		TransferMode displayTransferMode;
 		regtype *P_RS, *P_WR, *P_CS, *P_RST, *P_SDA, *P_SCL;
 		regsize B_RS, B_WR, B_CS, B_RST, B_SDA, B_SCL;
-		_current_font	cfont;
+		_current_font cfont;
 
-		void LCD_Writ_Bus(uint8_t VH, uint8_t VL, uint8_t mode);
+		void LCD_Writ_Bus(uint8_t VH, uint8_t VL);
 		void LCD_Write_COM(uint8_t VL);
 		void LCD_Write_DATA(uint8_t VH, uint8_t VL);
 		void LCD_Write_DATA(uint8_t VL);
@@ -170,10 +201,13 @@ class UTFT
 		void drawHLine(int x, int y, int l);
 		void drawVLine(int x, int y, int l);
 		void printChar(byte c, int x, int y);
-		void setXY(word x1, word y1, word x2, word y2);
+		void setXY(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2);
 		void clrXY();
 		void rotateChar(byte c, int x, int y, int pos, int deg);
-		void _set_direction_registers(byte mode);
+		void _set_direction_registers();
+		
+	private:
+		bool isParallel() const;
 };
 
 #endif

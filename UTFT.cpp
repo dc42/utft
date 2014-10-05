@@ -55,105 +55,57 @@
 #endif
 #include "memorysaver.h"
 
-UTFT::UTFT()
+inline bool UTFT::isParallel() const
 {
+	return displayTransferMode >= TModeLowestParallel;
 }
 
-UTFT::UTFT(byte model, int RS, int WR,int CS, int RST, int SER)
+UTFT::UTFT(DisplayType model, TransferMode pmode, int RS, int WR, int CS, int RST, int SER)
 { 
+	displayModel = model;
+	displayTransferMode = pmode;
 	switch (model)
 	{
 		case HX8347A:
+		case SSD1289:
+		case ILI9325C:
+		case ILI9325D:
+		case S1D19122:
+		case S6D1121:
 			disp_x_size=239;
 			disp_y_size=319;
-			display_transfer_mode=16;
 			break;
 		case ILI9327:
-			disp_x_size=239;
-			disp_y_size=399;
-			display_transfer_mode=16;
-			break;
-		case SSD1289:
-			disp_x_size=239;
-			disp_y_size=319;
-//			display_transfer_mode=16;
-			display_transfer_mode=9;
-			break;
-		case ILI9325C:
-			disp_x_size=239;
-			disp_y_size=319;
-			display_transfer_mode=8;
-			break;
-		case ILI9325D_8:
-			disp_x_size=239;
-			disp_y_size=319;
-			display_transfer_mode=8;
-			break;
-		case ILI9325D_16:
-			disp_x_size=239;
-			disp_y_size=319;
-			display_transfer_mode=16;
-			break;
-		case HX8340B_8:
-			disp_x_size=175;
-			disp_y_size=219;
-			display_transfer_mode=8;
-			break;
-		case HX8340B_S:
-			disp_x_size=175;
-			disp_y_size=219;
-			display_transfer_mode=1;
-			display_serial_mode=SERIAL_4PIN;
-			break;
 		case HX8352A:
 			disp_x_size=239;
 			disp_y_size=399;
-//			display_transfer_mode=16;
-			display_transfer_mode=9;
+			break;
+		case HX8340B:
+		case HX8340B_S:
+			disp_x_size=175;
+			disp_y_size=219;
 			break;
 		case ST7735:
 			disp_x_size=127;
 			disp_y_size=159;
-			display_transfer_mode=1;
-			display_serial_mode=SERIAL_5PIN;
 			break;
 		case PCF8833:
 			disp_x_size=127;
 			disp_y_size=127;
-			display_transfer_mode=1;
-			display_serial_mode=SERIAL_5PIN;
-			break;
-		case S1D19122:
-			disp_x_size=239;
-			disp_y_size=319;
-			display_transfer_mode=16;
 			break;
 		case SSD1963_480:
 			disp_x_size=271;
 			disp_y_size=479;
-			display_transfer_mode=16;
 			break;
 		case SSD1963_800:
 			disp_x_size=479;
 			disp_y_size=799;
-			display_transfer_mode=16;
-			break;
-		case S6D1121_8:
-			disp_x_size=239;
-			disp_y_size=319;
-			display_transfer_mode=8;
-			break;
-		case S6D1121_16:
-			disp_x_size=239;
-			disp_y_size=319;
-			display_transfer_mode=16;
 			break;
 	}
-	display_model=model;
 
-	if (display_transfer_mode!=1)
+	if (isParallel())
 	{
-		_set_direction_registers(display_transfer_mode);
+		_set_direction_registers();
 		P_RS	= portOutputRegister(digitalPinToPort(RS));
 		B_RS	= digitalPinToBitMask(RS);
 		P_WR	= portOutputRegister(digitalPinToPort(WR));
@@ -177,7 +129,7 @@ UTFT::UTFT(byte model, int RS, int WR,int CS, int RST, int SER)
 		B_CS	= digitalPinToBitMask(CS);
 		P_RST	= portOutputRegister(digitalPinToPort(RST));
 		B_RST	= digitalPinToBitMask(RST);
-		if (display_serial_mode!=SERIAL_4PIN)
+		if (displayTransferMode != TModeSerial4pin)
 		{
 			P_RS	= portOutputRegister(digitalPinToPort(SER));
 			B_RS	= digitalPinToBitMask(SER);
@@ -192,44 +144,48 @@ UTFT::UTFT(byte model, int RS, int WR,int CS, int RST, int SER)
 
 void UTFT::LCD_Write_COM(uint8_t VL)  
 {   
-	if (display_transfer_mode!=1)
+	if (isParallel())
 	{
 		cbi(P_RS, B_RS);
-		LCD_Writ_Bus(0x00,VL,display_transfer_mode);
+		LCD_Writ_Bus(0x00,VL);
 	}
 	else
-		LCD_Writ_Bus(0x00,VL,display_transfer_mode);
+	{
+		LCD_Writ_Bus(0x00,VL);
+	}
 }
 
 void UTFT::LCD_Write_DATA(uint8_t VH, uint8_t VL)
 {
-	if (display_transfer_mode!=1)
+	if (isParallel())
 	{
 		sbi(P_RS, B_RS);
-		LCD_Writ_Bus(VH,VL,display_transfer_mode);
+		LCD_Writ_Bus(VH,VL);
 	}
 	else
 	{
-		LCD_Writ_Bus(0x01,VH,display_transfer_mode);
-		LCD_Writ_Bus(0x01,VL,display_transfer_mode);
+		LCD_Writ_Bus(0x01,VH);
+		LCD_Writ_Bus(0x01,VL);
 	}
 }
 
 void UTFT::LCD_Write_DATA(uint8_t VL)
 {
-	if (display_transfer_mode!=1)
+	if (isParallel())
 	{
 		sbi(P_RS, B_RS);
-		LCD_Writ_Bus(0x00,VL,display_transfer_mode);
+		LCD_Writ_Bus(0x00,VL);
 	}
 	else
-		LCD_Writ_Bus(0x01,VL,display_transfer_mode);
+	{
+		LCD_Writ_Bus(0x01,VL);
+	}
 }
 
 void UTFT::LCD_Write_COM_DATA(uint8_t com1, uint16_t dat1)
 {
      LCD_Write_COM(com1);
-     LCD_Write_DATA(dat1>>8,dat1);
+     LCD_Write_DATA(dat1>>8, dat1 & 0xff);
 }
 
 void UTFT::LCD_Write_COM_DATA8(uint8_t com1, uint8_t dat1)
@@ -251,7 +207,7 @@ void UTFT::InitLCD(byte orientation)
 
 	cbi(P_CS, B_CS);
 
-	switch(display_model)
+	switch(displayModel)
 	{
 #ifndef DISABLE_HX8347A
 	case HX8347A:
@@ -518,8 +474,7 @@ void UTFT::InitLCD(byte orientation)
 		break;
 #endif
 #ifndef DISABLE_ILI9325D
-	case ILI9325D_8:
-	case ILI9325D_16:
+	case ILI9325D:
 		LCD_Write_COM_DATA(0xE5, 0x78F0); // set SRAM internal timing
 		LCD_Write_COM_DATA(0x01, 0x0100); // set Driver Output Control  
 		LCD_Write_COM_DATA(0x02, 0x0200); // set 1 line inversion  
@@ -581,8 +536,8 @@ void UTFT::InitLCD(byte orientation)
 		LCD_Write_COM_DATA(0x07, 0x0133); // 262K color and display ON        
 		break;
 #endif
-#ifndef DISABLE_HX8340B_8
-	case HX8340B_8:
+#ifndef DISABLE_HX8340B
+	case HX8340B:
 		LCD_Write_COM_DATA(0x26,0x0084); //PT=10,GON=0, DTE=0, D=0100
 		delay(40);
 		LCD_Write_COM_DATA(0x26,0x00B8); //PT=10,GON=1, DTE=1, D=1000
@@ -878,7 +833,6 @@ void UTFT::InitLCD(byte orientation)
 	case S1D19122:
 		//************* Start Initial Sequence **********//
 
-		int i,R,G,B;
 		LCD_Write_COM(0x11);
 		LCD_Write_COM(0x13);
 		LCD_Write_COM(0x29);
@@ -1038,21 +992,21 @@ void UTFT::InitLCD(byte orientation)
 
 		// -----------RGB Setting----------//
 		LCD_Write_COM(0x2D);
-		R=0;
-		G=0;
-		B=0;   
+		uint8_t R=0;
+		uint8_t G=0;
+		uint8_t B=0;   
     
-		for(i=0;i<32;i++)
+		for(uint8_t i=0;i<32;i++)
 		{ 
 			LCD_Write_DATA(R);
 			R=R+2;
 		}
-		for(i=0;i<64;i++)
+		for(uint8_t i=0;i<64;i++)
 		{ 
 			LCD_Write_DATA(G);
 			G=G+1;
 		} 
-		for(i=0;i<32;i++)
+		for(uint8_t i=0;i<32;i++)
 		{ 
 			LCD_Write_DATA(B);
 			B=B+2;
@@ -1308,8 +1262,7 @@ void UTFT::InitLCD(byte orientation)
 		break;
 #endif
 #ifndef DISABLE_S6D1121
-	case S6D1121_8:
-	case S6D1121_16:
+	case S6D1121:
 		LCD_Write_COM_DATA(0x11,0x2004);		
 		LCD_Write_COM_DATA(0x13,0xCC00);		
 		LCD_Write_COM_DATA(0x15,0x2600);	
@@ -1365,10 +1318,8 @@ void UTFT::InitLCD(byte orientation)
 	cfont.font=0;
 }
 
-void UTFT::setXY(word x1, word y1, word x2, word y2)
+void UTFT::setXY(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2)
 {
-	int tmp;
-
 	if (orient==LANDSCAPE)
 	{
 		swap(word, x1, y1);
@@ -1378,19 +1329,19 @@ void UTFT::setXY(word x1, word y1, word x2, word y2)
 		swap(word, y1, y2)
 	}
 
-	switch(display_model)
+	switch(displayModel)
 	{
 #if !(defined(DISABLE_HX8347A) && defined(DISABLE_HX8352A))
 	case HX8347A:
 	case HX8352A:
-		LCD_Write_COM_DATA(0x02,x1>>8);
-		LCD_Write_COM_DATA(0x03,x1);
-		LCD_Write_COM_DATA(0x04,x2>>8);
-		LCD_Write_COM_DATA(0x05,x2);
-		LCD_Write_COM_DATA(0x06,y1>>8);
-		LCD_Write_COM_DATA(0x07,y1);
-		LCD_Write_COM_DATA(0x08,y2>>8);
-		LCD_Write_COM_DATA(0x09,y2);
+		LCD_Write_COM_DATA8(0x02,x1>>8);
+		LCD_Write_COM_DATA8(0x03,x1);
+		LCD_Write_COM_DATA8(0x04,x2>>8);
+		LCD_Write_COM_DATA8(0x05,x2);
+		LCD_Write_COM_DATA8(0x06,y1>>8);
+		LCD_Write_COM_DATA8(0x07,y1);
+		LCD_Write_COM_DATA8(0x08,y2>>8);
+		LCD_Write_COM_DATA8(0x09,y2);
 		LCD_Write_COM(0x22);      
 		break;
 #endif
@@ -1421,8 +1372,7 @@ void UTFT::setXY(word x1, word y1, word x2, word y2)
 #endif
 #if !(defined(DISABLE_ILI9325C) && defined(DISABLE_ILI9325D))
 	case ILI9325C:
-	case ILI9325D_8:
-	case ILI9325D_16:
+	case ILI9325D:
 		LCD_Write_COM_DATA(0x20,x1);
 		LCD_Write_COM_DATA(0x21,y1);
 		LCD_Write_COM_DATA(0x50,x1);
@@ -1433,7 +1383,7 @@ void UTFT::setXY(word x1, word y1, word x2, word y2)
 		break;
 #endif
 #if !defined(DISABLE_HX8340B_8)
-	case HX8340B_8:
+	case HX8340B:
 		LCD_Write_COM_DATA(0x02,0x0000); 
 		LCD_Write_COM_DATA(0x03,x1); 
 		LCD_Write_COM_DATA(0x04,0x0000);
@@ -1492,8 +1442,7 @@ void UTFT::setXY(word x1, word y1, word x2, word y2)
 		break;
 #endif
 #ifndef DISABLE_S6D1121
-	case S6D1121_8:
-	case S6D1121_16:
+	case S6D1121:
 		LCD_Write_COM_DATA(0x46,(x2 << 8) | x1);
 		LCD_Write_COM_DATA(0x47,y2);
 		LCD_Write_COM_DATA(0x48,y1);
@@ -1515,8 +1464,6 @@ void UTFT::clrXY()
 
 void UTFT::drawRect(int x1, int y1, int x2, int y2)
 {
-	int tmp;
-
 	if (x1>x2)
 	{
 		swap(int, x1, x2);
@@ -1534,8 +1481,6 @@ void UTFT::drawRect(int x1, int y1, int x2, int y2)
 
 void UTFT::drawRoundRect(int x1, int y1, int x2, int y2)
 {
-	int tmp;
-
 	if (x1>x2)
 	{
 		swap(int, x1, x2);
@@ -1559,8 +1504,6 @@ void UTFT::drawRoundRect(int x1, int y1, int x2, int y2)
 
 void UTFT::fillRect(int x1, int y1, int x2, int y2)
 {
-	int tmp;
-
 	if (x1>x2)
 	{
 		swap(int, x1, x2);
@@ -1590,8 +1533,6 @@ void UTFT::fillRect(int x1, int y1, int x2, int y2)
 
 void UTFT::fillRoundRect(int x1, int y1, int x2, int y2)
 {
-	int tmp;
-
 	if (x1>x2)
 	{
 		swap(int, x1, x2);
@@ -1630,10 +1571,9 @@ void UTFT::drawCircle(int x, int y, int radius)
 	int ddF_y = -2 * radius;
 	int x1 = 0;
 	int y1 = radius;
-	char ch, cl;
 	
-	ch=((fcolorr&248)|fcolorg>>5);
-	cl=((fcolorg&28)<<3|fcolorb>>3);
+	uint8_t ch=((fcolorr&248)|fcolorg>>5);
+	uint8_t cl=((fcolorg&28)<<3|fcolorb>>3);
  
 	cbi(P_CS, B_CS);
 	setXY(x, y + radius, x, y + radius);
@@ -1680,71 +1620,74 @@ void UTFT::drawCircle(int x, int y, int radius)
 void UTFT::fillCircle(int x, int y, int radius)
 {
 	cbi(P_CS, B_CS);
-	for(int y1=-radius; y1<=radius; y1++) 
+	for(int y1=-radius; y1<=radius; y1++)
+	{	
 		for(int x1=-radius; x1<=radius; x1++) 
+		{
 			if(x1*x1+y1*y1 <= radius*radius) 
 			{
 				setXY(x+x1, y+y1, x+x1, y+y1);
 				LCD_Write_DATA(((fcolorr&248)|fcolorg>>5),((fcolorg&28)<<3|fcolorb>>3));
 			}
+		}
+	}
 	sbi(P_CS, B_CS);
 	clrXY();
 }
 
 void UTFT::clrScr()
 {
-	long i;
-	
 	cbi(P_CS, B_CS);
 	clrXY();
-	if (display_transfer_mode!=1)
-		sbi(P_RS, B_RS);
-	for (i=0; i<((disp_x_size+1)*(disp_y_size+1)); i++)
+	if (isParallel())
 	{
-		if (display_transfer_mode!=1)
-			LCD_Writ_Bus(0,0,display_transfer_mode);
+		sbi(P_RS, B_RS);
+	}
+	for (uint32_t i=0; i<((disp_x_size+1)*(disp_y_size+1)); i++)
+	{
+		if (isParallel())
+			LCD_Writ_Bus(0,0);
 		else
 		{
-			LCD_Writ_Bus(1,0,display_transfer_mode);
-			LCD_Writ_Bus(1,0,display_transfer_mode);
+			LCD_Writ_Bus(0x01,0);
+			LCD_Writ_Bus(0x01,0);
 		}
 	}
 	sbi(P_CS, B_CS);
 }
 
-void UTFT::fillScr(byte r, byte g, byte b)
+void UTFT::fillScr(uint8_t r, uint8_t g, uint8_t b)
 {
-	long i;
-	char ch, cl;
-	
-	ch=((r&248)|g>>5);
-	cl=((g&28)<<3|b>>3);
+	uint8_t ch=((r&248)|g>>5);
+	uint8_t cl=((g&28)<<3|b>>3);
 
 	cbi(P_CS, B_CS);
 	clrXY();
-	if (display_transfer_mode!=1)
-		sbi(P_RS, B_RS);
-	for (i=0; i<((disp_x_size+1)*(disp_y_size+1)); i++)
+	if (isParallel())
 	{
-		if (display_transfer_mode!=1)
-			LCD_Writ_Bus(ch,cl,display_transfer_mode);
+		sbi(P_RS, B_RS);
+	}
+	for (uint32_t i=0; i<((disp_x_size+1)*(disp_y_size+1)); i++)
+	{
+		if (isParallel())
+			LCD_Writ_Bus(ch,cl);
 		else
 		{
-			LCD_Writ_Bus(1,ch,display_transfer_mode);
-			LCD_Writ_Bus(1,cl,display_transfer_mode);
+			LCD_Writ_Bus(0x01,ch);
+			LCD_Writ_Bus(0x01,cl);
 		}
 	}
 	sbi(P_CS, B_CS);
 }
 
-void UTFT::setColor(byte r, byte g, byte b)
+void UTFT::setColor(uint8_t r, uint8_t g, uint8_t b)
 {
 	fcolorr=r;
 	fcolorg=g;
 	fcolorb=b;
 }
 
-void UTFT::setBackColor(byte r, byte g, byte b)
+void UTFT::setBackColor(uint8_t r, uint8_t g, uint8_t b)
 {
 	bcolorr=r;
 	bcolorg=g;
@@ -1753,7 +1696,7 @@ void UTFT::setBackColor(byte r, byte g, byte b)
 
 void UTFT::setPixel(uint8_t r, uint8_t g, uint8_t b)
 {
-	LCD_Write_DATA(((r&248)|g>>5),((g&28)<<3|b>>3));	// rrrrrggggggbbbbb
+	LCD_Write_DATA(((r&248)|g>>5), ((g&28)<<3|b>>3));	// rrrrrggggggbbbbb
 }
 
 void UTFT::drawPixel(int x, int y)
@@ -1767,13 +1710,8 @@ void UTFT::drawPixel(int x, int y)
 
 void UTFT::drawLine(int x1, int y1, int x2, int y2)
 {
-	int tmp;
-	double delta, tx, ty;
-	double m, b, dx, dy;
-	char ch, cl;
-	
-	ch=((fcolorr&248)|fcolorg>>5);
-	cl=((fcolorg&28)<<3|fcolorb>>3);
+	uint8_t ch=((fcolorr&248)|fcolorg>>5);
+	uint8_t cl=((fcolorg&28)<<3|fcolorb>>3);
 
 	if (((x2-x1)<0))
 	{
@@ -1805,8 +1743,8 @@ void UTFT::drawLine(int x1, int y1, int x2, int y2)
 	else if (abs(x2-x1)>abs(y2-y1))
 	{
 		cbi(P_CS, B_CS);
-		delta=(double(y2-y1)/double(x2-x1));
-		ty=double(y1);
+		double delta=(double(y2-y1)/double(x2-x1));
+		double ty=double(y1);
 		if (x1>x2)
 		{
 			for (int i=x1; i>=x2; i--)
@@ -1830,8 +1768,8 @@ void UTFT::drawLine(int x1, int y1, int x2, int y2)
 	else
 	{
 		cbi(P_CS, B_CS);
-		delta=(float(x2-x1)/float(y2-y1));
-		tx=float(x1);
+		double delta=(float(x2-x1)/float(y2-y1));
+		double tx=float(x1);
         if (y1>y2)
         {
 			for (int i=y2+1; i>y1; i--)
@@ -1858,10 +1796,8 @@ void UTFT::drawLine(int x1, int y1, int x2, int y2)
 
 void UTFT::drawHLine(int x, int y, int l)
 {
-	char ch, cl;
-	
-	ch=((fcolorr&248)|fcolorg>>5);
-	cl=((fcolorg&28)<<3|fcolorb>>3);
+	uint8_t ch=((fcolorr&248)|fcolorg>>5);
+	uint8_t cl=((fcolorg&28)<<3|fcolorb>>3);
 
 	cbi(P_CS, B_CS);
 	setXY(x, y, x+l, y);
@@ -1875,10 +1811,8 @@ void UTFT::drawHLine(int x, int y, int l)
 
 void UTFT::drawVLine(int x, int y, int l)
 {
-	char ch, cl;
-	
-	ch=((fcolorr&248)|fcolorg>>5);
-	cl=((fcolorg&28)<<3|fcolorb>>3);
+	uint8_t ch=((fcolorr&248)|fcolorg>>5);
+	uint8_t cl=((fcolorg&28)<<3|fcolorb>>3);
 
 	cbi(P_CS, B_CS);
 	setXY(x, y, x, y+l);
@@ -1892,21 +1826,18 @@ void UTFT::drawVLine(int x, int y, int l)
 
 void UTFT::printChar(byte c, int x, int y)
 {
-	byte i,ch;
-	word j;
-	word temp; 
-
+	cbi(P_CS, B_CS);
 	cbi(P_CS, B_CS);
   
 	if (orient==PORTRAIT)
 	{
 		setXY(x,y,x+cfont.x_size-1,y+cfont.y_size-1);
 	  
-		temp=((c-cfont.offset)*((cfont.x_size/8)*cfont.y_size))+4;
-		for(j=0;j<((cfont.x_size/8)*cfont.y_size);j++)
+		uint16_t temp=((c-cfont.offset)*((cfont.x_size/8)*cfont.y_size))+4;
+		for(uint16_t j=0; j<((cfont.x_size/8)*cfont.y_size); j++)
 		{
-			ch=pgm_read_byte(&cfont.font[temp]);
-			for(i=0;i<8;i++)
+			uint8_t ch = pgm_read_byte(&cfont.font[temp]);
+			for(uint8_t i=0; i<8; i++)
 			{   
 				if((ch&(1<<(7-i)))!=0)   
 				{
@@ -1922,15 +1853,15 @@ void UTFT::printChar(byte c, int x, int y)
 	}
 	else
 	{
-		temp=((c-cfont.offset)*((cfont.x_size/8)*cfont.y_size))+4;
+		uint16_t temp=((c-cfont.offset)*((cfont.x_size/8)*cfont.y_size))+4;
 
-		for(j=0;j<((cfont.x_size/8)*cfont.y_size);j+=(cfont.x_size/8))
+		for(uint16_t j=0;j<((cfont.x_size/8)*cfont.y_size);j+=(cfont.x_size/8))
 		{
 			setXY(x,y+(j/(cfont.x_size/8)),x+cfont.x_size-1,y+(j/(cfont.x_size/8)));
 			for (int zz=(cfont.x_size/8)-1; zz>=0; zz--)
 			{
-				ch=pgm_read_byte(&cfont.font[temp+zz]);
-				for(i=0;i<8;i++)
+				uint8_t ch=pgm_read_byte(&cfont.font[temp+zz]);
+				for(uint8_t i=0;i<8;i++)
 				{   
 					if((ch&(1<<i))!=0)   
 					{
@@ -1951,24 +1882,20 @@ void UTFT::printChar(byte c, int x, int y)
 
 void UTFT::rotateChar(byte c, int x, int y, int pos, int deg)
 {
-	byte i,j,ch;
-	word temp; 
-	int newx,newy;
-	double radian;
-	radian=deg*0.0175;  
+	double radian = deg*0.0175;  
 
 	cbi(P_CS, B_CS);
 
-	temp=((c-cfont.offset)*((cfont.x_size/8)*cfont.y_size))+4;
-	for(j=0;j<cfont.y_size;j++) 
+	uint16_t temp=((c-cfont.offset)*((cfont.x_size/8)*cfont.y_size))+4;
+	for(uint8_t j=0;j<cfont.y_size;j++) 
 	{
 		for (int zz=0; zz<(cfont.x_size/8); zz++)
 		{
-			ch=pgm_read_byte(&cfont.font[temp+zz]); 
-			for(i=0;i<8;i++)
+			uint8_t ch = pgm_read_byte(&cfont.font[temp+zz]); 
+			for(uint8_t i=0;i<8;i++)
 			{   
-				newx=x+(((i+(zz*8)+(pos*cfont.x_size))*cos(radian))-((j)*sin(radian)));
-				newy=y+(((j)*cos(radian))+((i+(zz*8)+(pos*cfont.x_size))*sin(radian)));
+				int newx=x+(((i+(zz*8)+(pos*cfont.x_size))*cos(radian))-((j)*sin(radian)));
+				int newy=y+(((j)*cos(radian))+((i+(zz*8)+(pos*cfont.x_size))*sin(radian)));
 
 				setXY(newx,newy,newx+1,newy+1);
 				
@@ -1990,32 +1917,33 @@ void UTFT::rotateChar(byte c, int x, int y, int pos, int deg)
 
 void UTFT::print(char *st, int x, int y, int deg)
 {
-	int stl, i;
-
-	stl = strlen(st);
+	size_t stl = strlen(st);
 
 	if (orient==PORTRAIT)
 	{
-	if (x==RIGHT)
-		x=(disp_x_size+1)-(stl*cfont.x_size);
-	if (x==CENTER)
-		x=((disp_x_size+1)-(stl*cfont.x_size))/2;
+		if (x==RIGHT)
+			x=(disp_x_size+1)-(stl*cfont.x_size);
+		if (x==CENTER)
+			x=((disp_x_size+1)-(stl*cfont.x_size))/2;
 	}
 	else
 	{
-	if (x==RIGHT)
-		x=(disp_y_size+1)-(stl*cfont.x_size);
-	if (x==CENTER)
-		x=((disp_y_size+1)-(stl*cfont.x_size))/2;
+		if (x==RIGHT)
+			x=(disp_y_size+1)-(stl*cfont.x_size);
+		if (x==CENTER)
+			x=((disp_y_size+1)-(stl*cfont.x_size))/2;
 	}
 
-	for (i=0; i<stl; i++)
+	for (size_t i=0; i<stl; i++)
+	{
 		if (deg==0)
 			printChar(*st++, x + (i*(cfont.x_size)), y);
 		else
 			rotateChar(*st++, x, y, i, deg);
+	}
 }
 
+#ifndef DISABLE_STRINGS
 void UTFT::print(String st, int x, int y, int deg)
 {
 	char buf[st.length()+1];
@@ -2023,6 +1951,7 @@ void UTFT::print(String st, int x, int y, int deg)
 	st.toCharArray(buf, st.length()+1);
 	print(buf, x, y, deg);
 }
+#endif
 
 void UTFT::printNumI(long num, int x, int y, int length, char filler)
 {
@@ -2036,7 +1965,9 @@ void UTFT::printNumI(long num, int x, int y, int length, char filler)
 		if (length!=0)
 		{
 			for (c=0; c<(length-1); c++)
+			{
 				st[c]=filler;
+			}
 			st[c]=48;
 			st[c+1]=0;
 		}
@@ -2093,24 +2024,26 @@ void UTFT::printNumF(double num, byte dec, int x, int y, char divider, int lengt
 	char st[27];
 	boolean neg=false;
 	int c=0, f=0;
-	int c2, mult;
-	unsigned long inum;
   
 	if (dec<1)
-	dec=1;
+		dec=1;
 	if (dec>5)
-	dec=5;
+		dec=5;
 	  
 	if (num==0)
 	{
 		if (length!=0)
 		{
 			for (c=0; c<(length-2-dec); c++)
+			{
 				st[c]=filler;
+			}
 			st[c]=48;
 			st[c+1]=divider;
 			for (int i=0; i<dec; i++)
+			{
 				st[c+2+i]=48;
+			}
 			st[c+2+dec]=0;
 		}
 		else
@@ -2118,7 +2051,9 @@ void UTFT::printNumF(double num, byte dec, int x, int y, char divider, int lengt
 			st[0]=48;
 			st[1]=divider;
 			for (int i=0; i<dec; i++)
+			{
 				st[2+i]=48;
+			}
 			st[2+dec]=0;
 		}
 	}
@@ -2130,10 +2065,12 @@ void UTFT::printNumF(double num, byte dec, int x, int y, char divider, int lengt
 			num=-num;
 		}
 	  
-		mult = 1;
+		int mult = 1;
 		for (int j = 0; j < dec; j++)
+		{
 			mult = mult * 10;
-		inum=long(num*mult + 0.5);
+		}
+		uint32_t inum = uint32_t(num*mult + 0.5);
 	  
 		while (inum>0)
 		{
@@ -2167,7 +2104,7 @@ void UTFT::printNumF(double num, byte dec, int x, int y, char divider, int lengt
 			}
 		}
 
-		c2=neg;
+		int c2 = (neg) ? 1 : 0;
 		for (int i=0; i<c; i++)
 		{
 			st[c2+f]=buf[c-i-1];
@@ -2195,33 +2132,29 @@ void UTFT::setFont(uint8_t* font)
 
 void UTFT::drawBitmap(int x, int y, int sx, int sy, bitmapdatatype data, int scale)
 {
-	unsigned int col;
-	int tx, ty, tc, tsx, tsy;
-	byte r, g, b;
-
 	if (scale==1)
 	{
 		if (orient==PORTRAIT)
 		{
 			cbi(P_CS, B_CS);
 			setXY(x, y, x+sx-1, y+sy-1);
-			for (tc=0; tc<(sx*sy); tc++)
+			for (int tc=0; tc<(sx*sy); tc++)
 			{
-				col=pgm_read_word(&data[tc]);
-				LCD_Write_DATA(col>>8,col & 0xff);
+				uint16_t col=pgm_read_word(&data[tc]);
+				LCD_Write_DATA(col>>8, col & 0xff);
 			}
 			sbi(P_CS, B_CS);
 		}
 		else
 		{
 			cbi(P_CS, B_CS);
-			for (ty=0; ty<sy; ty++)
+			for (int ty=0; ty<sy; ty++)
 			{
 				setXY(x, y+ty, x+sx-1, y+ty);
-				for (tx=sx; tx>=0; tx--)
+				for (int tx=sx; tx>=0; tx--)
 				{
-					col=pgm_read_word(&data[(ty*sx)+tx]);
-					LCD_Write_DATA(col>>8,col & 0xff);
+					uint16_t col = pgm_read_word(&data[(ty*sx)+tx]);
+					LCD_Write_DATA(col>>8, col & 0xff);
 				}
 			}
 			sbi(P_CS, B_CS);
@@ -2232,15 +2165,17 @@ void UTFT::drawBitmap(int x, int y, int sx, int sy, bitmapdatatype data, int sca
 		if (orient==PORTRAIT)
 		{
 			cbi(P_CS, B_CS);
-			for (ty=0; ty<sy; ty++)
+			for (int ty=0; ty<sy; ty++)
 			{
 				setXY(x, y+(ty*scale), x+((sx*scale)-1), y+(ty*scale)+scale);
-				for (tsy=0; tsy<scale; tsy++)
-					for (tx=0; tx<sx; tx++)
+				for (int tsy=0; tsy<scale; tsy++)
+					for (int tx=0; tx<sx; tx++)
 					{
-						col=pgm_read_word(&data[(ty*sx)+tx]);
-						for (tsx=0; tsx<scale; tsx++)
-							LCD_Write_DATA(col>>8,col & 0xff);
+						uint16_t col = pgm_read_word(&data[(ty*sx)+tx]);
+						for (int tsx=0; tsx<scale; tsx++)
+						{
+							LCD_Write_DATA(col>>8, col & 0xff);
+						}
 					}
 			}
 			sbi(P_CS, B_CS);
@@ -2248,16 +2183,18 @@ void UTFT::drawBitmap(int x, int y, int sx, int sy, bitmapdatatype data, int sca
 		else
 		{
 			cbi(P_CS, B_CS);
-			for (ty=0; ty<sy; ty++)
+			for (int ty=0; ty<sy; ty++)
 			{
-				for (tsy=0; tsy<scale; tsy++)
+				for (int tsy=0; tsy<scale; tsy++)
 				{
 					setXY(x, y+(ty*scale)+tsy, x+((sx*scale)-1), y+(ty*scale)+tsy);
-					for (tx=sx; tx>=0; tx--)
+					for (int tx=sx; tx>=0; tx--)
 					{
-						col=pgm_read_word(&data[(ty*sx)+tx]);
-						for (tsx=0; tsx<scale; tsx++)
-							LCD_Write_DATA(col>>8,col & 0xff);
+						uint16_t col=pgm_read_word(&data[(ty*sx)+tx]);
+						for (int tsx=0; tsx<scale; tsx++)
+						{
+							LCD_Write_DATA(col>>8, col & 0xff);
+						}
 					}
 				}
 			}
@@ -2269,24 +2206,20 @@ void UTFT::drawBitmap(int x, int y, int sx, int sy, bitmapdatatype data, int sca
 
 void UTFT::drawBitmap(int x, int y, int sx, int sy, bitmapdatatype data, int deg, int rox, int roy)
 {
-	unsigned int col;
-	int tx, ty, newx, newy;
-	byte r, g, b;
-	double radian;
-	radian=deg*0.0175;  
+	double radian = deg*0.0175;  
 
 	if (deg==0)
 		drawBitmap(x, y, sx, sy, data);
 	else
 	{
 		cbi(P_CS, B_CS);
-		for (ty=0; ty<sy; ty++)
-			for (tx=0; tx<sx; tx++)
+		for (int ty=0; ty<sy; ty++)
+			for (int tx=0; tx<sx; tx++)
 			{
-				col=pgm_read_word(&data[(ty*sx)+tx]);
+				uint16_t col=pgm_read_word(&data[(ty*sx)+tx]);
 
-				newx=x+rox+(((tx-rox)*cos(radian))-((ty-roy)*sin(radian)));
-				newy=y+roy+(((ty-roy)*cos(radian))+((tx-rox)*sin(radian)));
+				int newx=x+rox+(((tx-rox)*cos(radian))-((ty-roy)*sin(radian)));
+				int newy=y+roy+(((ty-roy)*cos(radian))+((tx-rox)*sin(radian)));
 
 				setXY(newx, newy, newx, newy);
 				LCD_Write_DATA(col>>8,col & 0xff);
@@ -2299,7 +2232,7 @@ void UTFT::drawBitmap(int x, int y, int sx, int sy, bitmapdatatype data, int deg
 void UTFT::lcdOff()
 {
 	cbi(P_CS, B_CS);
-	switch (display_model)
+	switch (displayModel)
 	{
 	case PCF8833:
 		LCD_Write_COM(0x28);
@@ -2311,7 +2244,7 @@ void UTFT::lcdOff()
 void UTFT::lcdOn()
 {
 	cbi(P_CS, B_CS);
-	switch (display_model)
+	switch (displayModel)
 	{
 	case PCF8833:
 		LCD_Write_COM(0x29);
@@ -2320,21 +2253,20 @@ void UTFT::lcdOn()
 	sbi(P_CS, B_CS);
 }
 
-void UTFT::setContrast(char c)
+void UTFT::setContrast(uint8_t c)
 {
 	cbi(P_CS, B_CS);
-	switch (display_model)
+	switch (displayModel)
 	{
 	case PCF8833:
 		if (c>64) c=64;
-		LCD_Write_COM(0x25);
-		LCD_Write_DATA(c);
+		LCD_Write_COM_DATA8(0x25, c);
 		break;
 	}
 	sbi(P_CS, B_CS);
 }
 
-int UTFT::getDisplayXSize()
+int UTFT::getDisplayXSize() const
 {
 	if (orient==PORTRAIT)
 		return disp_x_size+1;
@@ -2342,7 +2274,7 @@ int UTFT::getDisplayXSize()
 		return disp_y_size+1;
 }
 
-int UTFT::getDisplayYSize()
+int UTFT::getDisplayYSize() const
 {
 	if (orient==PORTRAIT)
 		return disp_y_size+1;
