@@ -201,7 +201,8 @@ class UTFT : public Print
 		const char* translateTo;
 
 		// Hardware interface
-		void LCD_Writ_Bus(uint8_t VH, uint8_t VL);
+		void LCD_Write_Bus(uint8_t VH, uint8_t VL);
+		void LCD_Write_Again(uint16_t num);
 		void _set_direction_registers();
 
 		// Low level interface

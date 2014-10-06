@@ -105,7 +105,9 @@ UTFT::UTFT(DisplayType model, TransferMode pmode, int RS, int WR, int CS, int RS
 			break;
 	}
 
+#ifndef DISABLE_SERIAL
 	if (isParallel())
+#endif
 	{
 		_set_direction_registers();
 		P_RS	= portOutputRegister(digitalPinToPort(RS));
@@ -127,6 +129,7 @@ UTFT::UTFT(DisplayType model, TransferMode pmode, int RS, int WR, int CS, int RS
 			pinMode(SER_LATCH,OUTPUT);
 		}
 	}
+#ifndef DISABLE_SERIAL
 	else
 	{
 		P_SDA	= portOutputRegister(digitalPinToPort(RS));
@@ -148,55 +151,77 @@ UTFT::UTFT(DisplayType model, TransferMode pmode, int RS, int WR, int CS, int RS
 		pinMode(CS,OUTPUT);
 		pinMode(RST,OUTPUT);
 	}
+#endif
 }
 
 void UTFT::LCD_Write_COM(uint8_t VL)  
 {   
+#ifndef DISABLE_SERIAL
 	if (isParallel())
+#endif
 	{
 		cbi(P_RS, B_RS);
-		LCD_Writ_Bus(0x00,VL);
+		LCD_Write_Bus(0x00,VL);
 	}
+#ifndef DISABLE_SERIAL
 	else
 	{
-		LCD_Writ_Bus(0x00,VL);
+		LCD_Write_Bus(0x00,VL);
 	}
+#endif
 }
 
 void UTFT::LCD_Write_DATA(uint8_t VH, uint8_t VL)
 {
+#ifndef DISABLE_SERIAL
 	if (isParallel())
+#endif
 	{
 		sbi(P_RS, B_RS);
-		LCD_Writ_Bus(VH,VL);
+		LCD_Write_Bus(VH,VL);
 	}
+#ifndef DISABLE_SERIAL
 	else
 	{
-		LCD_Writ_Bus(0x01,VH);
-		LCD_Writ_Bus(0x01,VL);
+		LCD_Write_Bus(0x01,VH);
+		LCD_Write_Bus(0x01,VL);
 	}
+#endif
 }
 
 void UTFT::LCD_Write_Repeated_DATA(uint8_t VH, uint8_t VL, uint16_t num)
 {
+#ifndef DISABLE_SERIAL
 	if (isParallel())
+#endif
 	{
 		sbi(P_RS, B_RS);
-		while (num != 0)
+#ifndef DISABLE_8BIT
+		if (displayTransferMode == TMode8bit)
 		{
-			LCD_Writ_Bus(VH,VL);
-			--num;
+			do
+			{
+				LCD_Write_Bus(VH, VL);
+			} while (--num != 0);
+		}
+		else
+#endif
+		{
+			LCD_Write_Bus(VH, VL);
+			LCD_Write_Again(num - 1);
 		}
 	}
+#ifndef DISABLE_SERIAL
 	else
 	{
-		while (num != 0)
+		do
 		{
-			LCD_Writ_Bus(0x01,VH);
-			LCD_Writ_Bus(0x01,VL);
+			LCD_Write_Bus(0x01, VH);
+			LCD_Write_Bus(0x01, VL);
 			--num;
-		}
+		} while (num-- != 0)
 	}
+#endif
 }
 
 void UTFT::LCD_Write_Repeated_DATA(uint8_t VH, uint8_t VL, uint16_t num1, uint16_t num2)
@@ -210,15 +235,19 @@ void UTFT::LCD_Write_Repeated_DATA(uint8_t VH, uint8_t VL, uint16_t num1, uint16
 
 void UTFT::LCD_Write_DATA(uint8_t VL)
 {
+#ifndef DISABLE_SERIAL
 	if (isParallel())
+#endif
 	{
 		sbi(P_RS, B_RS);
-		LCD_Writ_Bus(0x00,VL);
+		LCD_Write_Bus(0x00, VL);
 	}
+#ifndef DISABLE_SERIAL
 	else
 	{
-		LCD_Writ_Bus(0x01,VL);
+		LCD_Write_Bus(0x01, VL);
 	}
+#endif
 }
 
 void UTFT::LCD_Write_COM_DATA(uint8_t com1, uint16_t dat1)

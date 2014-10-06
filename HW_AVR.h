@@ -1,11 +1,12 @@
 #ifndef HW_AVR_h
 #define HW_AVR_h
 
-// *** Hardwarespecific functions ***
-void UTFT::LCD_Writ_Bus(uint8_t VH, uint8_t VL)
+// *** Hardware specific functions ***
+void UTFT::LCD_Write_Bus(uint8_t VH, uint8_t VL)
 {   
 	switch (displayTransferMode)
 	{
+#ifndef DISABLE_SERIAL
 	case TModeSerial4pin:
 	case TModeSerial5pin:
 		if (displayTransferMode == TModeSerial4pin)
@@ -65,7 +66,9 @@ void UTFT::LCD_Writ_Bus(uint8_t VH, uint8_t VL)
 			cbi(P_SDA, B_SDA);
 		pulse_low(P_SCL, B_SCL);
 		break;
+#endif
 
+#ifndef DISABLE_8BIT
 	case TMode8bit:
 #if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
 		PORTA = VH;
@@ -159,7 +162,9 @@ void UTFT::LCD_Writ_Bus(uint8_t VH, uint8_t VL)
 
 #endif
 		break;
+#endif
 
+#ifndef DISABLE_9BIT
 	case TMode9bit:
 		// This is for using a display with a 16-bit parallel interface with one of the smaller Arduinos.
 		// We use the same 8 pins to pass first the high byte and then the low byte. We latch the high byte in a 74HC373.
@@ -184,7 +189,9 @@ void UTFT::LCD_Writ_Bus(uint8_t VH, uint8_t VL)
 #endif
 		pulse_low(P_WR, B_WR);		
 		break;
+#endif
 
+#ifndef DISABLE_16BIT
 	case TMode16bit:
 #if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
 		PORTA = VH;
@@ -197,6 +204,18 @@ void UTFT::LCD_Writ_Bus(uint8_t VH, uint8_t VL)
 #endif
 		pulse_low(P_WR, B_WR);
 		break;
+#endif
+	}
+}
+
+// Write the previous 16-bit data again the specified number of times.
+// Only supported in 9 and 16 bit modes. Used to speed up setting large blocks of pixels to the same colour. 
+void UTFT::LCD_Write_Again(uint16_t num)
+{   
+	while (num != 0)
+	{
+		pulse_low(P_WR, B_WR);
+		--num;
 	}
 }
 

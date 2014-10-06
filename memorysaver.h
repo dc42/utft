@@ -14,7 +14,7 @@
 
 #define DISABLE_HX8347A			1
 #define DISABLE_ILI9327			1
-//#define DISABLE_SSD1289			1
+#define DISABLE_SSD1289			1
 #define DISABLE_ILI9325C		1
 #define DISABLE_ILI9325D		1
 #define DISABLE_HX8340B			1
@@ -28,3 +28,8 @@
 #define DISABLE_S6D1121			1
 
 #define DISABLE_BITMAP_ROTATE	1
+
+#define DISABLE_SERIAL			1
+#define DISABLE_8BIT			1
+//#define DISABLE_9BIT			1
+#define DISABLE_16BIT			1
