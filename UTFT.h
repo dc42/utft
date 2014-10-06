@@ -144,23 +144,33 @@ struct FontDescriptor
 	uint8_t lastChar;
 };
 
+typedef uint16_t Color;
+
 class UTFT : public Print
 {
 	public:
 		UTFT(DisplayType model, TransferMode pMode, int RS, int WR, int CS, int RST, int SER_LATCH = 0);
 		void InitLCD(uint8_t orientation = LANDSCAPE);
 		void clrScr();
+		void fillScr(Color c);
 		void drawPixel(int x, int y);
 		void drawLine(int x1, int y1, int x2, int y2);
-		void fillScr(uint8_t r, uint8_t g, uint8_t b);
 		void drawRect(int x1, int y1, int x2, int y2);
 		void drawRoundRect(int x1, int y1, int x2, int y2);
 		void fillRect(int x1, int y1, int x2, int y2);
 		void fillRoundRect(int x1, int y1, int x2, int y2);
 		void drawCircle(int x, int y, int radius);
 		void fillCircle(int x, int y, int radius);
-		void setColor(uint8_t r, uint8_t g, uint8_t b);
-		void setBackColor(uint8_t r, uint8_t g, uint8_t b);
+		
+		// Colour management. We store colours in native 16-bit format, but support conversion from RGB.
+		void setColor(Color c);
+		void setBackColor(Color c);
+		static Color fromRGB(uint8_t r, uint8_t g, uint8_t b);
+		
+		// The following are for backwards compatibility
+		void setColor(uint8_t r, uint8_t g, uint8_t b) { setColor(fromRGB(r, g, b)); }
+		void setBackColor(uint8_t r, uint8_t g, uint8_t b)  { setBackColor(fromRGB(r, g, b)); }
+		void fillScr(uint8_t r, uint8_t g, uint8_t b) { fillScr(fromRGB(r, g, b)); }
 		
 		// New print functions
 		// Set up translation for characters. Useful for translating fullstop into decimal point, or changing the width of spaces.

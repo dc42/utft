@@ -1384,8 +1384,8 @@ void UTFT::InitLCD(byte orientation)
 
 	sbi (P_CS, B_CS); 
 
-	setColor(255, 255, 255);
-	setBackColor(0, 0, 0);
+	setColor(0xFFFF);
+	setBackColor(0);
 	cfont.font=0;
 }
 
@@ -1733,27 +1733,29 @@ void UTFT::clrScr()
 	sbi(P_CS, B_CS);
 }
 
-void UTFT::fillScr(uint8_t r, uint8_t g, uint8_t b)
+uint16_t UTFT::fromRGB(uint8_t r, uint8_t g, uint8_t b)
 {
-	uint8_t ch=((r&248)|g>>5);
-	uint8_t cl=((g&28)<<3|b>>3);
+	return ((r & 248) << 8) | ((g & 252) << 3) | (b >> 3);
+}
 
+void UTFT::fillScr(Color c)
+{
 	cbi(P_CS, B_CS);
 	clrXY();
-	LCD_Write_Repeated_DATA(ch, cl, disp_x_size+1, disp_y_size+1);
+	LCD_Write_Repeated_DATA(c >> 8, c & 0xFF, disp_x_size+1, disp_y_size+1);
 	sbi(P_CS, B_CS);
 }
 
-void UTFT::setColor(uint8_t r, uint8_t g, uint8_t b)
+void UTFT::setColor(Color c)
 {
-	fcolorhi = (r&248)|(g>>5);
-	fcolorlo = ((g&28)<<3)|(b>>3);
+	fcolorhi = c >> 8;
+	fcolorlo = c & 0xFF;
 }
 
-void UTFT::setBackColor(uint8_t r, uint8_t g, uint8_t b)
+void UTFT::setBackColor(Color c)
 {
-	bcolorhi = (r&248)|(g>>5);
-	bcolorlo = ((g&28)<<3)|(b>>3);
+	bcolorhi = c >> 8;
+	bcolorlo = c & 0xFF;
 }
 
 void UTFT::drawPixel(int x, int y)
@@ -1861,13 +1863,14 @@ void UTFT::clearToMargin()
 
 		cbi(P_CS, B_CS);		
 		setXY(textXpos, textYpos, textRightMargin, textYpos + ySize - 1);
-		LCD_Write_Repeated_DATA(bcolorhi, bcolorlo, textRightMargin - textXpos, ySize);
+		LCD_Write_Repeated_DATA(bcolorhi, bcolorlo, textRightMargin + 1 - textXpos, ySize);
 		sbi(P_CS, B_CS);
 		clrXY();
 	}
 }
 
 // Write a character. Only works in landscape mode at present.
+// If textYpos is off the end of the display, then don't write anything, just update textXpos and lastCharColData
 size_t UTFT::write(uint8_t c)
 {
 	if (translateFrom != 0)
@@ -1886,7 +1889,11 @@ size_t UTFT::write(uint8_t c)
     
 	uint8_t ySize = cfont.y_size;
     const uint8_t bytesPerColumn = (ySize + 7)/8;
-	if (textYpos + ySize > disp_y_size)
+	if (textYpos > disp_y_size)
+	{
+		ySize = 0;
+	}
+	else if (textYpos + ySize > disp_y_size)
 	{
 		ySize = disp_y_size + 1 - textYpos;
 	}
@@ -1901,7 +1908,7 @@ size_t UTFT::write(uint8_t c)
     // Decide whether to add a space column first (auto-kerning)
     // We don't add a space column before a space character.
     // We add a space column after a space character if we would have added one between the preceding and following characters.
-    if (textXpos < textRightMargin)
+    if (textXpos <= textRightMargin)
     {
 		uint32_t thisCharColData = pgm_read_dword_near(fontPtr) & cmask;    // atmega328p is little-endian
 		if (thisCharColData == 0)  // for characters with deliberate space row at the start, e.g. decimal point
@@ -1912,8 +1919,11 @@ size_t UTFT::write(uint8_t c)
 		if (wantSpace)
 		{
 			// Add a single space column after the character
-			setXY(textXpos, textYpos, textXpos, textYpos + cfont.y_size - 1);
-			LCD_Write_Repeated_DATA(bcolorhi, bcolorlo, cfont.y_size);
+			if (ySize != 0)
+			{
+				setXY(textXpos, textYpos, textXpos, textYpos + cfont.y_size - 1);
+				LCD_Write_Repeated_DATA(bcolorhi, bcolorlo, cfont.y_size);
+			}
 			++textXpos;
 		}      
     }
@@ -1926,18 +1936,21 @@ size_t UTFT::write(uint8_t c)
 		{
 			lastCharColData = colData & cmask;
 		}
-		setXY(textXpos, textYpos, textXpos, textYpos + ySize - 1);
-		for (uint8_t i = 0; i < ySize; ++i)
+		if (ySize != 0)
 		{
-			if (colData & 1u)
+			setXY(textXpos, textYpos, textXpos, textYpos + ySize - 1);
+			for (uint8_t i = 0; i < ySize; ++i)
 			{
-				LCD_Write_DATA(fcolorhi, fcolorlo);
+				if (colData & 1u)
+				{
+					LCD_Write_DATA(fcolorhi, fcolorlo);
+				}
+				else
+				{
+					LCD_Write_DATA(bcolorhi, bcolorlo);
+				}
+				colData >>= 1;
 			}
-			else
-			{
-				LCD_Write_DATA(bcolorhi, bcolorlo);
-			}
-			colData >>= 1;
 		}
 		--nCols;
 		++textXpos;
