@@ -262,9 +262,9 @@ void UTFT::LCD_Write_COM_DATA8(uint8_t com1, uint8_t dat1)
      LCD_Write_DATA(dat1);
 }
 
-void UTFT::InitLCD(byte orientation)
+void UTFT::InitLCD(Orientation po)
 {
-	orient=orientation;
+	orient = po;
 	textXpos = 0;
 	textYpos = 0;
 	lastCharColData = 0UL;
@@ -1391,13 +1391,22 @@ void UTFT::InitLCD(byte orientation)
 
 void UTFT::setXY(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2)
 {
-	if (orient==LANDSCAPE)
+	if (orient & SwapXY)
 	{
 		swap(uint16_t, x1, y1);
-		swap(uint16_t, x2, y2)
-		y1=disp_y_size-y1;
-		y2=disp_y_size-y2;
+		swap(uint16_t, x2, y2);
+	}
+	if (orient & ReverseY)
+	{
+		y1 = disp_y_size - y1;
+		y2 = disp_y_size - y2;
 		swap(uint16_t, y1, y2)
+	}
+	if (orient & ReverseX)
+	{
+		x1 = disp_x_size - x1;
+		x2 = disp_x_size - x2;
+		swap(uint16_t, x1, x2);
 	}
 
 	switch(displayModel)
@@ -1527,19 +1536,19 @@ void UTFT::setXY(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2)
 
 void UTFT::clrXY()
 {
-	if (orient==PORTRAIT)
-		setXY(0,0,disp_x_size,disp_y_size);
-	else
+	if (orient & SwapXY)
 		setXY(0,0,disp_y_size,disp_x_size);
+	else
+		setXY(0,0,disp_x_size,disp_y_size);
 }
 
 void UTFT::drawRect(int x1, int y1, int x2, int y2)
 {
-	if (x1>x2)
+	if (x1 > x2)
 	{
 		swap(int, x1, x2);
 	}
-	if (y1>y2)
+	if (y1 > y2)
 	{
 		swap(int, y1, y2);
 	}
@@ -1584,20 +1593,20 @@ void UTFT::fillRect(int x1, int y1, int x2, int y2)
 		swap(int, y1, y2);
 	}
 
-	if (orient==PORTRAIT)
-	{
-		for (int i=0; i<((y2-y1)/2)+1; i++)
-		{
-			drawHLine(x1, y1+i, x2-x1);
-			drawHLine(x1, y2-i, x2-x1);
-		}
-	}
-	else
+	if (orient & SwapXY)
 	{
 		for (int i=0; i<((x2-x1)/2)+1; i++)
 		{
 			drawVLine(x1+i, y1, y2-y1);
 			drawVLine(x2-i, y1, y2-y1);
+		}
+	}
+	else
+	{
+		for (int i=0; i<((y2-y1)/2)+1; i++)
+		{
+			drawHLine(x1, y1+i, x2-x1);
+			drawHLine(x1, y2-i, x2-x1);
 		}
 	}
 }
@@ -1939,17 +1948,36 @@ size_t UTFT::write(uint8_t c)
 		if (ySize != 0)
 		{
 			setXY(textXpos, textYpos, textXpos, textYpos + ySize - 1);
-			for (uint8_t i = 0; i < ySize; ++i)
+			if (orient & InvertText)
 			{
-				if (colData & 1u)
+				uint32_t mask = 1u << (ySize - 1);
+				for (uint8_t i = 0; i < ySize; ++i)
 				{
-					LCD_Write_DATA(fcolorhi, fcolorlo);
+					if (colData & mask)
+					{
+						LCD_Write_DATA(fcolorhi, fcolorlo);
+					}
+					else
+					{
+						LCD_Write_DATA(bcolorhi, bcolorlo);
+					}
+					colData <<= 1;
 				}
-				else
+			}
+			else
+			{
+				for (uint8_t i = 0; i < ySize; ++i)
 				{
-					LCD_Write_DATA(bcolorhi, bcolorlo);
+					if (colData & 1u)
+					{
+						LCD_Write_DATA(fcolorhi, fcolorlo);
+					}
+					else
+					{
+						LCD_Write_DATA(bcolorhi, bcolorlo);
+					}
+					colData >>= 1;
 				}
-				colData >>= 1;
 			}
 		}
 		--nCols;
@@ -1979,73 +2007,37 @@ void UTFT::setFont(const uint8_t* font)
 	cfont.font += 4;
 }
 
+//TODO implement for inverted modes
 void UTFT::drawBitmap(int x, int y, int sx, int sy, bitmapdatatype data, int scale)
 {
-	if (scale==1)
+	cbi(P_CS, B_CS);
+	int curY = y;
+	for (int ty=0; ty<sy; ty++)
 	{
-		if (orient==PORTRAIT)
+		for (int i = 0; i < scale; ++i)
 		{
-			cbi(P_CS, B_CS);
-			setXY(x, y, x+sx-1, y+sy-1);
-			for (int tc=0; tc<(sx*sy); tc++)
+			setXY(x, curY, x+(sx*scale)-1, curY);
+			if (orient & InvertBitmap)
 			{
-				uint16_t col = pgm_read_word(&data[tc]);
-				LCD_Write_DATA(col>>8, col & 0xff);
+				for (int tx=sx; tx!=0; )
+				{
+					--tx;
+					uint16_t col = pgm_read_word(&data[(ty*sx)+tx]);
+					LCD_Write_Repeated_DATA(col>>8, col & 0xff, scale);
+				}
 			}
-			sbi(P_CS, B_CS);
-		}
-		else
-		{
-			cbi(P_CS, B_CS);
-			for (int ty=0; ty<sy; ty++)
+			else
 			{
-				setXY(x, y+ty, x+sx-1, y+ty);
-				for (int tx=sx; tx>=0; tx--)
+				for (int tx=0; tx<sx; tx++)
 				{
 					uint16_t col = pgm_read_word(&data[(ty*sx)+tx]);
-					LCD_Write_DATA(col>>8, col & 0xff);
+					LCD_Write_Repeated_DATA(col>>8, col & 0xff, scale);
 				}
 			}
-			sbi(P_CS, B_CS);
+			++curY;
 		}
 	}
-	else
-	{
-		if (orient==PORTRAIT)
-		{
-			cbi(P_CS, B_CS);
-			for (int ty=0; ty<sy; ty++)
-			{
-				setXY(x, y+(ty*scale), x+((sx*scale)-1), y+(ty*scale)+scale);
-				for (int tsy=0; tsy<scale; tsy++)
-				{
-					for (int tx=0; tx<sx; tx++)
-					{
-						uint16_t col = pgm_read_word(&data[(ty*sx)+tx]);
-						LCD_Write_Repeated_DATA(col>>8, col & 0xff, scale);
-					}
-				}
-			}
-			sbi(P_CS, B_CS);
-		}
-		else
-		{
-			cbi(P_CS, B_CS);
-			for (int ty=0; ty<sy; ty++)
-			{
-				for (int tsy=0; tsy<scale; tsy++)
-				{
-					setXY(x, y+(ty*scale)+tsy, x+((sx*scale)-1), y+(ty*scale)+tsy);
-					for (int tx=sx; tx>=0; tx--)
-					{
-						uint16_t col=pgm_read_word(&data[(ty*sx)+tx]);
-						LCD_Write_Repeated_DATA(col>>8, col & 0xff, scale);
-					}
-				}
-			}
-			sbi(P_CS, B_CS);
-		}
-	}
+	sbi(P_CS, B_CS);
 	clrXY();
 }
 
@@ -2119,16 +2111,10 @@ void UTFT::setContrast(uint8_t c)
 
 uint16_t UTFT::getDisplayXSize() const
 {
-	if (orient==PORTRAIT)
-		return disp_x_size+1;
-	else
-		return disp_y_size+1;
+	return ((orient & SwapXY) ? disp_y_size : disp_x_size) + 1;
 }
 
 uint16_t UTFT::getDisplayYSize() const
 {
-	if (orient==PORTRAIT)
-		return disp_y_size+1;
-	else
-		return disp_x_size+1;
+	return ((orient & SwapXY) ? disp_x_size : disp_y_size) + 1;
 }

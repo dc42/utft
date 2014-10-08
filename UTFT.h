@@ -48,8 +48,22 @@
 #ifndef UTFT_h
 #define UTFT_h
 
-#define PORTRAIT 0
-#define LANDSCAPE 1
+// Enumeration to define the orientation.
+// To keep the code small and fast, we use individual bits to say what needs to be done.
+// Then we define the supported orientations in terms of those bits.
+enum Orientation {
+	Default = 0x00,
+	SwapXY = 0x01,
+	ReverseX = 0x02,
+	ReverseY = 0x04,
+	InvertText = 0x08,
+	InvertBitmap = 0x10,
+	
+	Portrait = Default, 
+	Landscape = SwapXY | ReverseY | InvertBitmap, 
+	InvPortrait = ReverseX | ReverseY | InvertText | InvertBitmap, 
+	InvLandscape = SwapXY | ReverseX | InvertText 
+};
 
 enum DisplayType {
 	HX8347A,
@@ -150,7 +164,7 @@ class UTFT : public Print
 {
 	public:
 		UTFT(DisplayType model, TransferMode pMode, int RS, int WR, int CS, int RST, int SER_LATCH = 0);
-		void InitLCD(uint8_t orientation = LANDSCAPE);
+		void InitLCD(Orientation po = Landscape);
 		void clrScr();
 		void fillScr(Color c);
 		void drawPixel(int x, int y);
@@ -198,7 +212,7 @@ class UTFT : public Print
 	protected:
 		uint8_t fcolorhi, fcolorlo;
 		uint8_t bcolorhi, bcolorlo;
-		uint8_t orient;
+		Orientation orient;
 		uint16_t disp_x_size, disp_y_size;
 		DisplayType displayModel;
 		TransferMode displayTransferMode;
