@@ -1850,7 +1850,8 @@ void UTFT::setTextPos(uint16_t x, uint16_t y, uint16_t rm)
 {
 	textXpos = x;
 	textYpos = y;
-	textRightMargin = (rm > disp_x_size) ? disp_x_size + 1 : rm;
+	uint16_t xSize = (orient & SwapXY) ? disp_y_size : disp_x_size;
+	textRightMargin = (rm > xSize) ? xSize + 1 : rm;
     lastCharColData = 0UL;    // flag that we just set the cursor position, so no space before next character
 }
 
@@ -1862,7 +1863,7 @@ size_t UTFT::print(const char *s, uint16_t x, uint16_t y, uint16_t rm)
 
 void UTFT::clearToMargin()
 {
-	if (textXpos <= textRightMargin)
+	if (textXpos < textRightMargin)
 	{
 		uint8_t ySize = cfont.y_size;
 		if (textYpos + ySize > disp_y_size)
@@ -1871,8 +1872,8 @@ void UTFT::clearToMargin()
 		}
 
 		cbi(P_CS, B_CS);		
-		setXY(textXpos, textYpos, textRightMargin, textYpos + ySize - 1);
-		LCD_Write_Repeated_DATA(bcolorhi, bcolorlo, textRightMargin + 1 - textXpos, ySize);
+		setXY(textXpos, textYpos, textRightMargin - 1, textYpos + ySize - 1);
+		LCD_Write_Repeated_DATA(bcolorhi, bcolorlo, textRightMargin - textXpos, ySize);
 		sbi(P_CS, B_CS);
 		clrXY();
 	}
@@ -1913,19 +1914,28 @@ size_t UTFT::write(uint8_t c)
     
     uint8_t nCols = pgm_read_byte_near(fontPtr++);
 	cbi(P_CS, B_CS);
+	
+	if (lastCharColData != 0)	// if we have written anything otehr than spaces
+	{
+		uint8_t numSpaces = cfont.spaces;
 
-    // Decide whether to add a space column first (auto-kerning)
-    // We don't add a space column before a space character.
-    // We add a space column after a space character if we would have added one between the preceding and following characters.
-    if (textXpos <= textRightMargin)
-    {
+		// Decide whether to add the full number of space columns first (auto-kerning)
+		// We don't add a space column before a space character.
+		// We add a space column after a space character if we would have added one between the preceding and following characters.
 		uint32_t thisCharColData = pgm_read_dword_near(fontPtr) & cmask;    // atmega328p is little-endian
 		if (thisCharColData == 0)  // for characters with deliberate space row at the start, e.g. decimal point
 		{
 			thisCharColData = pgm_read_dword_near(fontPtr + bytesPerColumn) & cmask;	// get the next column instead
 		}
-		bool wantSpace = ((thisCharColData | (thisCharColData << 1)) & (lastCharColData | (lastCharColData << 1))) != 0;
-		if (wantSpace)
+
+		bool kern = (numSpaces >= 2)
+						? ((thisCharColData & lastCharColData) == 0)
+						: (((thisCharColData | (thisCharColData << 1)) & (lastCharColData | (lastCharColData << 1))) == 0);
+		if (kern)
+		{
+			--numSpaces;	// kern the character pair
+		}
+		while (numSpaces != 0 && textXpos < textRightMargin)
 		{
 			// Add a single space column after the character
 			if (ySize != 0)
@@ -1934,9 +1944,10 @@ size_t UTFT::write(uint8_t c)
 				LCD_Write_Repeated_DATA(bcolorhi, bcolorlo, cfont.y_size);
 			}
 			++textXpos;
+			--numSpaces;
 		}      
-    }
-    
+	}
+
     while (nCols != 0 && textXpos < textRightMargin)
     {
 		uint32_t colData = pgm_read_dword_near(fontPtr);
@@ -2002,9 +2013,10 @@ void UTFT::setFont(const uint8_t* font)
 	cfont.font=font;
 	cfont.x_size=fontbyte(0);
 	cfont.y_size=fontbyte(1);
-	cfont.firstChar=fontbyte(2);
-	cfont.lastChar=fontbyte(3);
-	cfont.font += 4;
+	cfont.spaces=fontbyte(2);
+	cfont.firstChar=fontbyte(3);
+	cfont.lastChar=fontbyte(4);
+	cfont.font += 5;
 }
 
 //TODO implement for inverted modes

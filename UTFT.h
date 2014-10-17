@@ -154,6 +154,7 @@ struct FontDescriptor
 	const uint8_t* font;
 	uint8_t x_size;
 	uint8_t y_size;
+	uint8_t spaces;
 	uint8_t firstChar;
 	uint8_t lastChar;
 };
